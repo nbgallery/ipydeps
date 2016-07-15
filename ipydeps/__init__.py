@@ -16,12 +16,56 @@ elif sys.version_info.major == 2:
 else:
     logging.error('Unknown version of Python: {v}'.format(v=sys.version_info.major))
 
+
+_per_package_params = ['--allow-unverified', '--allow-external']
+
+def _find_user_home():
+    return os.environ['HOME']  # TODO: add support for Windows
+
 def _user_site_packages():
-    home = os.environ['HOME']
+    home = _find_user_home()
     major = sys.version_info.major
     minor = sys.version_info.minor
     path = '/.local/lib/python{major}.{minor}/site-packages'.format(major=major, minor=minor)
     return home+path
+
+def _write_config(path, options):
+    with open(path, 'w') as f:
+        for option in options:
+            f.write(option + '\n')
+
+def _config_location():
+    home = _find_user_home()
+    config_dir = home + '/.config/ipydeps'
+    config_path = config_dir + os.sep + 'ipydeps.conf'
+
+    if not os.path.exists(config_dir):
+        try:
+            os.makedirs(config_dir, 0o755)
+        except FileExistsError:
+            pass
+        except Exception as e:
+            logging.error('Cannot create config directory: {0}'.format(str(e)))
+
+    if os.path.exists(config_dir):
+        if not os.path.exists(config_path):
+            _write_config(config_path, [])
+
+        return config_path
+    else:
+        raise Exception('Unable to determine path to ipydeps.conf')
+
+def _read_config(path):
+    options = []
+
+    with open(path, 'r') as f:
+        for line in f:
+            line = line.strip()
+
+            if line.startswith('--'):
+                options.append(line)
+
+    return options
 
 def _invalidate_cache():
     '''
@@ -50,19 +94,35 @@ def _pkg_name_list(x):
     packages = list(set([ p for p in packages if len(p) > 0 ]))
     return packages
 
+def _per_package_args(packages, options):
+    new_options = []
+    opts = _per_package_params
+
+    for opt in opts:
+        if opt in options:
+            new_options.extend([ opt+'='+p for p in packages])
+
+    return new_options
+
+def _remove_per_package_options(options):
+    return [ opt for opt in options if opt not in _per_package_params ]
+
 def pip(pkg_name, verbose=False):
-    options = [
+    args = [
         'install',
         '--user',
     ]
 
     if verbose:
-        options.append('-vvv')
+        args.append('-vvv')
 
     packages = _pkg_name_list(pkg_name)
+    config_options = _read_config(_config_location())
+    args.extend(_remove_per_package_options(config_options))
+    args.extend(_per_package_args(packages, config_options))
 
     if len(packages) > 0:
-        _pip.main(options + packages)
+        _pip.main(args + packages)
         _invalidate_cache()
     else:
         logging.warning('no packages specified')
@@ -73,7 +133,7 @@ if not os.path.exists(_user_site_packages()):
     except FileExistsError:
         pass  # ignore.  Something snuck in and created it for us
     except Exception as e:
-        logging.error('Error creating user site-packages directory: {0}'.format(str(e)))
+        logging.error('Cannot create user site-packages directory: {0}'.format(str(e)))
 
 if _user_site_packages() not in sys.path:
     sys.path.append(_user_site_packages())

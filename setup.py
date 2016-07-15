@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name='ipydeps',
-    version='0.0.3',
+    version='0.1.0',
     author='Bill Allen',
     author_email='photo.allen@gmail.com',
     description='A pip interface wrapper for installing packages from within Jupyter notebooks.',
