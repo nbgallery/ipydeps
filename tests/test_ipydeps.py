@@ -1,7 +1,14 @@
 # vim: expandtab shiftwidth=4 softtabstop=4
 
+import logging
 import os
 import unittest
+
+_logger = logging.getLogger('ipydeps')
+_log_handler = logging.StreamHandler()
+_log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+_log_handler.setLevel(logging.DEBUG)
+_logger.addHandler(_log_handler)
 
 from ipydeps import _config_location, _per_package_args, _pkg_names, _pkg_name_list, _read_config, _write_config
 

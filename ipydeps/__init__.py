@@ -1,4 +1,4 @@
-# vim: expandtab shiftwidth=4 softtabstop=4
+# vim: expandtab tabstop=4 shiftwidth=4
 
 from time import sleep
 
@@ -8,13 +8,16 @@ import pip as _pip
 import re
 import sys
 
+_logger = logging.getLogger('ipydeps')
+_logger.addHandler(logging.NullHandler())
+
 if sys.version_info.major == 3:
     import subprocess as commands
     import importlib
 elif sys.version_info.major == 2:
     import commands
 else:
-    logging.error('Unknown version of Python: {v}'.format(v=sys.version_info.major))
+    _logger.error('Unknown version of Python: {v}'.format(v=sys.version_info.major))
 
 
 _per_package_params = ['--allow-unverified', '--allow-external']
@@ -45,7 +48,7 @@ def _config_location():
         except FileExistsError:
             pass
         except Exception as e:
-            logging.error('Cannot create config directory: {0}'.format(str(e)))
+            _logger.error('Cannot create config directory: {0}'.format(str(e)))
 
     if os.path.exists(config_dir):
         if not os.path.exists(config_path):
@@ -125,7 +128,7 @@ def pip(pkg_name, verbose=False):
         _pip.main(args + packages)
         _invalidate_cache()
     else:
-        logging.warning('no packages specified')
+        _logger.warning('no packages specified')
 
 if not os.path.exists(_user_site_packages()):
     try:
@@ -133,7 +136,7 @@ if not os.path.exists(_user_site_packages()):
     except FileExistsError:
         pass  # ignore.  Something snuck in and created it for us
     except Exception as e:
-        logging.error('Cannot create user site-packages directory: {0}'.format(str(e)))
+        _logger.error('Cannot create user site-packages directory: {0}'.format(str(e)))
 
 if _user_site_packages() not in sys.path:
     sys.path.append(_user_site_packages())

@@ -1,4 +1,4 @@
-# vim: expandtab shiftwidth=4 softtabstop=4
+# vim: expandtab tabstop=4 shiftwidth=4
 
 import os
 from setuptools import setup
