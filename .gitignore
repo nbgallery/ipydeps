@@ -1,2 +1,4 @@
+dist
+ipydeps.egg-info
 build
 *.pyc

@@ -1,5 +1,8 @@
 # vim: expandtab shiftwidth=4 softtabstop=4
 
+from tempfile import NamedTemporaryFile
+
+import json
 import logging
 import os
 import unittest
@@ -10,7 +13,15 @@ _log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(mes
 _log_handler.setLevel(logging.DEBUG)
 _logger.addHandler(_log_handler)
 
-from ipydeps import _config_location, _per_package_args, _pkg_names, _pkg_name_list, _read_config, _write_config
+from ipydeps import _config_location
+from ipydeps import _find_overrides
+from ipydeps import _per_package_args
+from ipydeps import _pkg_names
+from ipydeps import _pkg_name_list
+from ipydeps import _py_name
+from ipydeps import _read_config
+from ipydeps import _str_to_bin
+from ipydeps import _write_config
 
 class PkgNameTests(unittest.TestCase):
     def test_pkg_names(self):
@@ -22,6 +33,40 @@ class PkgNameTests(unittest.TestCase):
 
     def test_bad_pkg_name(self):
         self.assertEqual(len(_pkg_name_list(['exec', 'exec()'])), 1)
+
+class OverrideTests(unittest.TestCase):
+    def test_no_overrides(self):
+        names = ['foo', 'bar', 'baz']
+        overrides = _find_overrides(names, '')
+
+        for name in names:
+            self.assertTrue(name not in overrides)
+
+    def test_all_overrides(self):
+        with NamedTemporaryFile('w') as f:
+            j = {
+                    _py_name(): {
+                        'foo': [
+                            [ 'package', 'foo' ]
+                        ],
+                        'bar': [
+                            [ 'package', 'foo' ],
+                            [ 'package', 'bar' ]
+                        ],
+                        'baz': [
+                            [ 'package', 'foo', 'baz' ]
+                        ]
+                    }
+            }
+
+            f.write(_str_to_bin(json.dumps(j)))
+            f.flush()
+
+            names = ['foo', 'bar', 'baz']
+            overrides = _find_overrides(names, 'file://'+f.name)
+
+            for name in names:
+                self.assertTrue(name in overrides)
 
 class ConfigTests(unittest.TestCase):
     path = '/tmp/ipydeps_test.conf'
