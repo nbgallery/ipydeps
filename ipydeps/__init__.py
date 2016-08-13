@@ -133,7 +133,7 @@ def _invalidate_cache():
     will look for new import locations.
     '''
     if sys.version_info.major == 3:
-        importlib.invalidate_cache()
+        importlib.invalidate_caches()
     sleep(2)
 
 def _pkg_names(s):
@@ -142,7 +142,7 @@ def _pkg_names(s):
     so weird strings that might contain code
     don't get through.
     '''
-    pat = re.compile('[A-Za-z0-9_]+')
+    pat = re.compile('[A-Za-z0-9_-]+')
     return pat.findall(s)
 
 def _pkg_name_list(x):
