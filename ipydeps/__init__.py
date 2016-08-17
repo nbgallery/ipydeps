@@ -216,14 +216,14 @@ def package(pkg_name):
         _logger.debug(commands.getoutput('apk add '+pkg))
 
 def _run_overrides(overrides):
-    for name, commands in overrides:
+    for name, cmds in overrides.items():
         _logger.debug('Working overrides for {0}'.format(name))
 
-        for command in commands:
+        for command in cmds:
             if command[0] == 'package' and len(command) > 1:
                 package(command[1:])
             elif len(command) > 0:
-                _logger.debug(command.getoutput(' '.join(command)))
+                _logger.debug(commands.getoutput(' '.join(command)))
 
 def _in_virtualenv():
     # based on http://stackoverflow.com/questions/1871549/python-determine-if-running-inside-virtualenv
