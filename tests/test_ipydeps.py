@@ -1,4 +1,4 @@
-# vim: expandtab shiftwidth=4 softtabstop=4
+# vim: expandtab tabstop=4 shiftwidth=4
 
 from tempfile import NamedTemporaryFile
 
@@ -20,7 +20,8 @@ from ipydeps import _pkg_names
 from ipydeps import _pkg_name_list
 from ipydeps import _py_name
 from ipydeps import _read_config
-from ipydeps import _str_to_bin
+from ipydeps import _str_to_bytes
+from ipydeps import _subtract_installed
 from ipydeps import _write_config
 
 class PkgNameTests(unittest.TestCase):
@@ -34,9 +35,14 @@ class PkgNameTests(unittest.TestCase):
     def test_bad_pkg_name(self):
         self.assertEqual(len(_pkg_name_list(['exec', 'exec()'])), 1)
 
+    def test_subtract_installed(self):
+        packages = _subtract_installed(set(['pip', 'foofizz']))
+        self.assertTrue('foofizz' in packages)
+        self.assertTrue('pip' not in packages)
+
 class OverrideTests(unittest.TestCase):
     def test_no_overrides(self):
-        names = ['foo', 'bar', 'baz']
+        names = set(['foo', 'bar', 'baz'])
         overrides = _find_overrides(names, '')
 
         for name in names:
@@ -59,10 +65,10 @@ class OverrideTests(unittest.TestCase):
                     }
             }
 
-            f.write(_str_to_bin(json.dumps(j)))
+            f.write(json.dumps(j))
             f.flush()
 
-            names = ['foo', 'bar', 'baz']
+            names = set(['foo', 'bar', 'baz'])
             overrides = _find_overrides(names, 'file://'+f.name)
 
             for name in names:

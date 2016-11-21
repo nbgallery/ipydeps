@@ -35,9 +35,9 @@ def _bin_to_utf8(d):
     else:
         return d
 
-def _str_to_bin(s):
+def _str_to_bytes(s):
     if sys.version_info.major == 3:
-        return bin(s, encoding='utf8')
+        return bytes(s, encoding='utf8')
     elif sys.version_info.major == 2:
         return s
     else:
@@ -208,6 +208,24 @@ def _find_overrides(packages, dep_link):
 
     return overrides
 
+def _already_installed():
+    return set([ pkg.project_name for pkg in _pip.get_installed_distributions() ])
+
+def _subtract_installed(packages):
+    installed = _already_installed()
+    ret = set()
+
+    # This could be done with simple set() math, but we want to log each
+    # package that's already installed.
+    for pkg in packages:
+        if pkg in installed:
+            _logger.info('{0} already installed... skipping'.format(pkg))
+        else:
+            _logger.info('{0} will be installed'.format(pkg))
+            ret.add(pkg)
+
+    return ret
+
 def package(pkg_name):
     packages = _pkg_name_list(pkg_name)
 
@@ -242,12 +260,15 @@ def pip(pkg_name, verbose=False):
     if verbose:
         args.append('-vvv')
 
-    packages = _pkg_name_list(pkg_name)
+    packages = set(_pkg_name_list(pkg_name))
+    orig_package_list_len = len(packages)
+    packages = _subtract_installed(packages)
     overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
 
     _run_overrides(overrides)
 
-    packages = list(set(packages) - set(overrides.keys()))
+    packages = set(packages) - set(overrides.keys())
+    packages = list(packages)
     config_options = _read_config(_config_location())
     args.extend(_remove_per_package_options(config_options))
     args.extend(_per_package_args(packages, config_options))
@@ -255,12 +276,14 @@ def pip(pkg_name, verbose=False):
     if len(packages) > 0:
         _pip.main(args + packages)
         _invalidate_cache()
+    elif orig_package_list_len > 0:
+        _logger.info('All requested packages already installed')
     else:
         _logger.warning('no packages specified')
 
 if not os.path.exists(_user_site_packages()):
     try:
-        os.makedirs(_get_user_site_packages(), 0o755)
+        os.makedirs(_user_site_packages(), 0o755)
     except FileExistsError:
         pass  # ignore.  Something snuck in and created it for us
     except Exception as e:
