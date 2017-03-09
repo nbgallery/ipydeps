@@ -224,7 +224,7 @@ def _find_overrides(packages, dep_link):
 
     if py_name_micro in dep_json:
         for pkg in packages:
-            if pkg in dep_json[py_name_full]:
+            if pkg in dep_json[py_name_micro]:
                 overrides[pkg] = dep_json[py_name_micro][pkg]
 
     return overrides
