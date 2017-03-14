@@ -18,7 +18,9 @@ from ipydeps import _find_overrides
 from ipydeps import _per_package_args
 from ipydeps import _pkg_names
 from ipydeps import _pkg_name_list
-from ipydeps import _py_name
+from ipydeps import _py_name_major
+from ipydeps import _py_name_minor
+from ipydeps import _py_name_micro
 from ipydeps import _read_config
 from ipydeps import _str_to_bytes
 from ipydeps import _subtract_installed
@@ -51,7 +53,7 @@ class OverrideTests(unittest.TestCase):
     def test_all_overrides(self):
         with NamedTemporaryFile('w') as f:
             j = {
-                    _py_name(): {
+                    _py_name_major(): {
                         'foo': [
                             [ 'package', 'foo' ]
                         ],
@@ -61,6 +63,17 @@ class OverrideTests(unittest.TestCase):
                         ],
                         'baz': [
                             [ 'package', 'foo', 'baz' ]
+                        ]
+                    },
+                    _py_name_minor(): {
+                        'foo': [
+                            [ 'package', 'foo' ],
+                            [ 'package', 'bar' ]
+                        ],
+                    },
+                    _py_name_micro(): {
+                        'bar': [
+                            [ 'package', 'bar' ]
                         ]
                     }
             }
@@ -73,6 +86,9 @@ class OverrideTests(unittest.TestCase):
 
             for name in names:
                 self.assertTrue(name in overrides)
+
+            self.assertTrue(len(overrides['foo']) == 2)
+            self.assertTrue(len(overrides['bar']) == 1)
 
 class ConfigTests(unittest.TestCase):
     path = '/tmp/ipydeps_test.conf'
