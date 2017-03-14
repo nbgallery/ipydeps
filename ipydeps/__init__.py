@@ -167,11 +167,20 @@ def _per_package_args(packages, options):
 def _remove_per_package_options(options):
     return [ opt for opt in options if opt not in _per_package_params ]
 
-def _py_name():
+def _py_name_micro():
     major = sys.version_info.major
     minor = sys.version_info.minor
     micro = sys.version_info.micro
     return 'python-{major}.{minor}.{micro}'.format(major=major, minor=minor, micro=micro)
+
+def _py_name_minor():
+    major = sys.version_info.major
+    minor = sys.version_info.minor
+    return 'python-{major}.{minor}'.format(major=major, minor=minor)
+
+def _py_name_major():
+    major = sys.version_info.major
+    return 'python-{major}'.format(major=major)
 
 def _read_dependencies_json(dep_link):
     dep_link = dep_link.strip()
@@ -197,14 +206,26 @@ def _read_dependencies_json(dep_link):
 
 def _find_overrides(packages, dep_link):
     dep_json = _read_dependencies_json(dep_link)
-    py_name = _py_name()
+    py_name_micro = _py_name_micro()
+    py_name_minor = _py_name_minor()
+    py_name_major = _py_name_major()
 
     overrides = {}
 
-    if py_name in dep_json:
+    if py_name_major in dep_json:
         for pkg in packages:
-            if pkg in dep_json[py_name]:
-                overrides[pkg] = dep_json[py_name][pkg]
+            if pkg in dep_json[py_name_major]:
+                overrides[pkg] = dep_json[py_name_major][pkg]
+
+    if py_name_minor in dep_json:
+        for pkg in packages:
+            if pkg in dep_json[py_name_minor]:
+                overrides[pkg] = dep_json[py_name_minor][pkg]
+
+    if py_name_micro in dep_json:
+        for pkg in packages:
+            if pkg in dep_json[py_name_micro]:
+                overrides[pkg] = dep_json[py_name_micro][pkg]
 
     return overrides
 
