@@ -6,52 +6,14 @@ import json
 import logging
 import os
 import pip as _pip
-import pypki2
 import re
 import sys
 
 _logger = logging.getLogger('ipydeps')
 _logger.addHandler(logging.NullHandler())
 
-if sys.version_info.major == 3:
-    from urllib.request import urlopen
-    from urllib.error import HTTPError
-    import subprocess as commands
-    import importlib
-elif sys.version_info.major == 2:
-    from urllib2 import urlopen, HTTPError
-    import commands
-else:
-    _logger.error('Unknown version of Python: {v}'.format(v=sys.version_info.major))
-
-
-_per_package_params = ['--allow-unverified', '--allow-external']
-
-def _bin_to_utf8(d):
-    if sys.version_info.major == 3:
-        return str(d, encoding='utf8')
-    elif sys.version_info.major == 2:
-        return unicode(d)
-    else:
-        return d
-
-def _str_to_bytes(s):
-    if sys.version_info.major == 3:
-        return bytes(s, encoding='utf8')
-    elif sys.version_info.major == 2:
-        return s
-    else:
-        return s
-
 def _find_user_home():
     return os.environ['HOME']  # TODO: add support for Windows
-
-def _user_site_packages():
-    home = _find_user_home()
-    major = sys.version_info.major
-    minor = sys.version_info.minor
-    path = '/.local/lib/python{major}.{minor}/site-packages'.format(major=major, minor=minor)
-    return home+path
 
 def _write_config(path, options):
     with open(path, 'w') as f:
@@ -87,6 +49,62 @@ def _config_location():
     else:
         raise Exception('Unable to determine path to ipydeps.conf')
 
+def _read_config(path):
+    options = []
+
+    with open(path, 'r') as f:
+        for line in f:
+            line = line.strip()
+
+            if line.startswith('--'):
+                options.append(line)
+
+    return options
+
+_config_options = _read_config(_config_location())
+
+if '--use-pypki2' in _config_options:
+    import pypki2
+
+if sys.version_info.major == 3:
+    from urllib.request import urlopen
+    from urllib.error import HTTPError
+    import subprocess as commands
+    import importlib
+elif sys.version_info.major == 2:
+    from urllib2 import urlopen, HTTPError
+    import commands
+else:
+    _logger.error('Unknown version of Python: {v}'.format(v=sys.version_info.major))
+
+
+_per_package_params = ['--allow-unverified', '--allow-external']
+_internal_params = ['--use-pypki2']
+
+def _bin_to_utf8(d):
+    if sys.version_info.major == 3:
+        return str(d, encoding='utf8')
+    elif sys.version_info.major == 2:
+        return unicode(d)
+    else:
+        return d
+
+def _str_to_bytes(s):
+    if sys.version_info.major == 3:
+        return bytes(s, encoding='utf8')
+    elif sys.version_info.major == 2:
+        return s
+    else:
+        return s
+
+def _user_site_packages():
+    home = _find_user_home()
+    major = sys.version_info.major
+    minor = sys.version_info.minor
+    path = '/.local/lib/python{major}.{minor}/site-packages'.format(major=major, minor=minor)
+    return home+path
+
+
 def _write_dependencies_link(path, url):
     url = url.strip()
 
@@ -114,18 +132,6 @@ def _read_dependencies_link(path):
         link = link[0].strip()
 
     return link
-
-def _read_config(path):
-    options = []
-
-    with open(path, 'r') as f:
-        for line in f:
-            line = line.strip()
-
-            if line.startswith('--'):
-                options.append(line)
-
-    return options
 
 def _invalidate_cache():
     '''
@@ -166,6 +172,9 @@ def _per_package_args(packages, options):
 
 def _remove_per_package_options(options):
     return [ opt for opt in options if opt not in _per_package_params ]
+
+def _remove_internal_options(options):
+    return [ opt for opt in options if opt not in _internal_params ]
 
 def _py_name_micro():
     major = sys.version_info.major
@@ -290,9 +299,8 @@ def pip(pkg_name, verbose=False):
 
     packages = set(packages) - set(overrides.keys())
     packages = list(packages)
-    config_options = _read_config(_config_location())
-    args.extend(_remove_per_package_options(config_options))
-    args.extend(_per_package_args(packages, config_options))
+    args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
+    args.extend(_per_package_args(packages, _config_options))
 
     if len(packages) > 0:
         _pip.main(args + packages)

@@ -58,3 +58,11 @@ For example, maybe you want to install numpy, so you call ipydeps.pip('numpy'). 
 dependencies.link points to a dependencies.json file which maps the original package names to their overrides.
 
 Only place a trusted link in your dependencies.link file, since dependencies.json could contain malicious commands that get executed as you.
+
+### pypki2 support
+
+In some environments, having a PKI-enabled pip server is advantageous.  To that end, pypki2 integration is supported.  Simply add the following to ipydeps.conf:
+
+```text
+--use-pypki2
+```
