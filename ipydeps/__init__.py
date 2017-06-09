@@ -65,6 +65,7 @@ _config_options = _read_config(_config_location())
 
 if '--use-pypki2' in _config_options:
     import pypki2
+    import pypki2.pipwrapper
 
 if sys.version_info.major == 3:
     from urllib.request import urlopen

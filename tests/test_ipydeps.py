@@ -22,6 +22,7 @@ from ipydeps import _py_name_major
 from ipydeps import _py_name_minor
 from ipydeps import _py_name_micro
 from ipydeps import _read_config
+from ipydeps import _remove_internal_options
 from ipydeps import _str_to_bytes
 from ipydeps import _subtract_installed
 from ipydeps import _write_config
@@ -112,3 +113,8 @@ class ConfigTests(unittest.TestCase):
         self.assertTrue('--allow-external=foo' in args)
         self.assertTrue('--allow-unverified=bar' in args)
         self.assertTrue('--allow-external=bar' in args)
+
+    def test_remove_internal_options(self):
+        args = _remove_internal_options(['--allow-unverified', '--use-pypki2'])
+        self.assertTrue('--allow-unverified' in args)
+        self.assertTrue('--use-pypki2' not in args)
