@@ -1,24 +1,20 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-import os
 from setuptools import setup
-
-def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
     name='ipydeps',
-    version='0.3.0',
+    version='0.3.1',
     author='Bill Allen',
     author_email='photo.allen@gmail.com',
     description='A pip interface wrapper for installing packages from within Jupyter notebooks.',
     license='MIT',
-    keywords='pip install setup jupyter notebook dependencies',
-    url='https://github.com/jupyter-gallery/ipydeps',
+    keywords='pip install setup jupyter notebook dependencies'.split(),
+    url='https://github.com/nbgallery/ipydeps',
+    download_url='https://github.com/nbgallery/ipydeps/archive/0.3.1.tar.gz',
     packages=['ipydeps'],
     install_requires=['pip'],
     dependency_links=[],
-    long_description=read('README.md'),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Topic :: Utilities',
