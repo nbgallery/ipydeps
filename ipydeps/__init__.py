@@ -143,6 +143,12 @@ def _invalidate_cache():
         importlib.invalidate_caches()
     sleep(2)
 
+def _refresh_availabe_packages():
+    '''
+    Forces a rescan of available packages in pip's vendored pkg_resources.
+    '''
+    _pip.utils.pkg_resources._initialize_master_working_set()
+
 def _pkg_names(s):
     '''
     Finds potential package names using a regex
@@ -297,8 +303,9 @@ def pip(pkg_name, verbose=False):
     overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
 
     _run_overrides(overrides)
+    _refresh_availabe_packages()
 
-    packages = set(packages) - set(overrides.keys())
+    #packages = set(packages) - set(overrides.keys())
     packages = list(packages)
     args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
     args.extend(_per_package_args(packages, _config_options))
@@ -306,6 +313,7 @@ def pip(pkg_name, verbose=False):
     if len(packages) > 0:
         _pip.main(args + packages)
         _invalidate_cache()
+        _refresh_availabe_packages()
     elif orig_package_list_len > 0:
         _logger.info('All requested packages already installed')
     else:
