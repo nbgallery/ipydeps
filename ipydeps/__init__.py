@@ -305,7 +305,7 @@ def pip(pkg_name, verbose=False):
     _run_overrides(overrides)
     _refresh_available_packages()
 
-    #packages = set(packages) - set(overrides.keys())
+    packages = _subtract_installed(packages)
     packages = list(packages)
     args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
     args.extend(_per_package_args(packages, _config_options))
