@@ -13,7 +13,7 @@ _logger = logging.getLogger('ipydeps')
 _logger.addHandler(logging.NullHandler())
 
 def _find_user_home():
-    return os.environ['HOME']  # TODO: add support for Windows
+    return os.path.expanduser('~')
 
 def _write_config(path, options):
     with open(path, 'w') as f:
