@@ -7,6 +7,7 @@ import logging
 import os
 import pip as _pip
 import re
+import site
 import sys
 
 _logger = logging.getLogger('ipydeps')
@@ -14,6 +15,12 @@ _logger.addHandler(logging.NullHandler())
 
 def _find_user_home():
     return os.environ['HOME']  # TODO: add support for Windows
+
+def _in_virtualenv():
+    # based on http://stackoverflow.com/questions/1871549/python-determine-if-running-inside-virtualenv
+    if hasattr(sys, 'real_prefix'):
+        return True
+    return False
 
 def _write_config(path, options):
     with open(path, 'w') as f:
@@ -99,12 +106,14 @@ def _str_to_bytes(s):
         return s
 
 def _user_site_packages():
-    home = _find_user_home()
-    major = sys.version_info.major
-    minor = sys.version_info.minor
-    path = '/.local/lib/python{major}.{minor}/site-packages'.format(major=major, minor=minor)
-    return home+path
-
+    if not _in_virtualenv():
+        return site.getusersitepackages()
+    else:
+        home = _find_user_home()
+        major = sys.version_info.major
+        minor = sys.version_info.minor
+        path = '/.local/lib/python{major}.{minor}/site-packages'.format(major=major, minor=minor)
+        return home+path
 
 def _write_dependencies_link(path, url):
     url = url.strip()
@@ -198,6 +207,24 @@ def _py_name_major():
     major = sys.version_info.major
     return 'python-{major}'.format(major=major)
 
+def _case_insensitive_dependencies_json(dep_json):
+    lowercased = {}
+
+    for version in dep_json:
+        lowercased[version] = {}
+        packages = dep_json[version]
+
+        for pkg in packages:
+            pkg = pkg.lower()
+            cmds = packages[pkg]
+
+            if pkg in lowercased[version]:
+                _logger.warning('Duplicate package name {0} in dependencies JSON.  Package names are case-insensitive.  Overwriting!'.format(pkg))
+
+            lowercased[version][pkg] = cmds
+
+    return lowercased
+
 def _read_dependencies_json(dep_link):
     dep_link = dep_link.strip()
 
@@ -216,9 +243,9 @@ def _read_dependencies_json(dep_link):
         j = json.loads(d)
     except Exception as e:
         _logger.error(str(e))
-        return {}
+        j = {}
 
-    return j
+    return _case_insensitive_dependencies_json(j)
 
 def _find_overrides(packages, dep_link):
     dep_json = _read_dependencies_json(dep_link)
@@ -249,7 +276,8 @@ def _already_installed():
     return set([ pkg.project_name for pkg in _pip.get_installed_distributions() ])
 
 def _subtract_installed(packages):
-    installed = _already_installed()
+    packages = set(( p.lower() for p in packages))  # removes duplicates
+    installed = [ x.lower() for x in _already_installed() ]  # lowercase everything for comparison
     ret = set()
 
     # This could be done with simple set() math, but we want to log each
@@ -279,12 +307,6 @@ def _run_overrides(overrides):
                 package(command[1:])
             elif len(command) > 0:
                 _logger.debug(commands.getoutput(' '.join(command)))
-
-def _in_virtualenv():
-    # based on http://stackoverflow.com/questions/1871549/python-determine-if-running-inside-virtualenv
-    if hasattr(sys, 'real_prefix'):
-        return True
-    return False
 
 def pip(pkg_name, verbose=False):
     args = [
@@ -319,13 +341,17 @@ def pip(pkg_name, verbose=False):
     else:
         _logger.warning('no packages specified')
 
-if not os.path.exists(_user_site_packages()):
-    try:
-        os.makedirs(_user_site_packages(), 0o755)
-    except FileExistsError:
-        pass  # ignore.  Something snuck in and created it for us
-    except Exception as e:
-        _logger.error('Cannot create user site-packages directory: {0}'.format(str(e)))
+def _make_user_site_packages():
+    if not _in_virtualenv():
+        if not os.path.exists(_user_site_packages()):
+            try:
+                os.makedirs(_user_site_packages(), 0o755)
+            except FileExistsError:
+                pass  # ignore.  Something snuck in and created it for us
+            except Exception as e:
+                _logger.error('Cannot create user site-packages directory: {0}'.format(str(e)))
 
-if _user_site_packages() not in sys.path:
-    sys.path.append(_user_site_packages())
+        if _user_site_packages() not in sys.path:
+            sys.path.append(_user_site_packages())
+
+_make_user_site_packages()
