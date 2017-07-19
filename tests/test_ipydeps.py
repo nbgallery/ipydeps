@@ -71,6 +71,10 @@ class OverrideTests(unittest.TestCase):
                             [ 'package', 'foo' ],
                             [ 'package', 'bar' ]
                         ],
+                        'Foo': [  # should cause a warning because duplicate entry
+                            [ 'package', 'foo' ],
+                            [ 'package', 'bar' ]
+                        ],
                     },
                     _py_name_micro(): {
                         'bar': [
