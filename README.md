@@ -40,7 +40,7 @@ pip options for your particular environment can be placed in ~/.config/ipydeps/i
 --timeout=30
 ```
 
-Some pip options have to be specified per-package.  ipydeps will take care of specifying the option for each package for you.  However, make sure you're working in a fully trusted environment before using these options.  Putting these two files in your ipydeps.conf will basically turn off any of pip's built-in verification.
+Some pip options have to be specified per-package.  ipydeps will take care of specifying the option for each package for you.  However, make sure you're working in a fully trusted environment before using these options.  Putting these two lines in your ipydeps.conf will basically turn off any of pip's built-in verification.
 
 ```text
 --allow-external
@@ -51,13 +51,19 @@ If you were installing packages called "foo" and "bar" that you didn't want veri
 
 ### dependencies.link
 
-Sometimes there's a better way to install certain packages, such as a pre-built package.  ~/.config/ipydeps/dependencies.link contains a URL for a file that overrides ipydeps.pip() calls for certain packages.
+Sometimes there's a better way to install certain packages, such as a pre-built rpm or apk.  ~/.config/ipydeps/dependencies.link contains a URL for a file that overrides ipydeps.pip() calls for certain packages.
 
 For example, maybe you want to install numpy, so you call ipydeps.pip('numpy').  However, numpy can take a while to install from scratch.  If there's a pre-built version of numpy available, it can install in seconds instead of minutes.  
 
 dependencies.link points to a dependencies.json file which maps the original package names to their overrides.
 
 Only place a trusted link in your dependencies.link file, since dependencies.json could contain malicious commands that get executed as you.
+
+Also note that all package names are handled in a case-insensitive manner (just like pip), so ipydeps will output a warning if it finds duplicate packages listed in your dependencies.json file.
+
+### Windows support
+
+ipydeps now supports Windows as well as Linux.  It will look for your home directory using `os.path.expanduser('~')`.  In most cases, this just points to C:\Users\yourname.  You should put your .config/ipydeps/ipydeps.conf file in that directory.
 
 ### pypki2 support
 
