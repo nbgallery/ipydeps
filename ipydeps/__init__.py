@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import pip as _pip
+import pkg_resources
 import re
 import site
 import sys
@@ -154,9 +155,12 @@ def _invalidate_cache():
 
 def _refresh_available_packages():
     '''
-    Forces a rescan of available packages in pip's vendored pkg_resources.
+    Forces a rescan of available packages in pip's vendored pkg_resources
+    and the main pkg_resources package, also used by pbr.
     '''
-    _pip.utils.pkg_resources._initialize_master_working_set()
+    for entry in sys.path:
+        _pip.utils.pkg_resources.working_set.add_entry(entry)
+        pkg_resources.working_set.add_entry(entry)
 
 def _pkg_names(s):
     '''
