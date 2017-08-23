@@ -312,7 +312,7 @@ def _run_overrides(overrides):
             elif len(command) > 0:
                 _logger.debug(commands.getoutput(' '.join(command)))
 
-def pip(pkg_name, verbose=False):
+def pip(pkg_name, verbose=False, ignore_overrides=False):
     args = [
         'install',
     ]
@@ -326,9 +326,14 @@ def pip(pkg_name, verbose=False):
     packages = set(_pkg_name_list(pkg_name))
     orig_package_list_len = len(packages)
     packages = _subtract_installed(packages)
-    overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
+    overrides = {}
 
-    _run_overrides(overrides)
+    if not ignore_overrides:
+        overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
+        _run_overrides(overrides)
+    else:
+        _logger.info('Ignoring overrides from dependencies.link')
+
     _refresh_available_packages()
 
     packages = _subtract_installed(packages)
