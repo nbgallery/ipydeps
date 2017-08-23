@@ -288,7 +288,7 @@ def _subtract_installed(packages):
     # package that's already installed.
     for pkg in packages:
         if pkg in installed:
-            _logger.info('{0} already installed... skipping'.format(pkg))
+            _logger.info('{0} is installed'.format(pkg))
         else:
             _logger.info('{0} will be installed'.format(pkg))
             ret.add(pkg)
