@@ -312,7 +312,7 @@ def _run_overrides(overrides):
             elif len(command) > 0:
                 _logger.debug(commands.getoutput(' '.join(command)))
 
-def pip(pkg_name, verbose=False):
+def pip(pkg_name, verbose=False, index=None):
     args = [
         'install',
     ]
@@ -322,6 +322,10 @@ def pip(pkg_name, verbose=False):
 
     if verbose:
         args.append('-vvv')
+
+    if index is not None:
+        args.append('--isolated')
+        args.append('--index-url {0}'.format(index))
 
     packages = set(_pkg_name_list(pkg_name))
     orig_package_list_len = len(packages)
