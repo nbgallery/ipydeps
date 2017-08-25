@@ -14,6 +14,14 @@ import sys
 _logger = logging.getLogger('ipydeps')
 _logger.addHandler(logging.NullHandler())
 
+def _is_str23(s):
+    if sys.version_info.major == 3 and type(s) is str:
+        return True
+    elif sys.version_info.major == 2 and (type(s) is str or type(s) is unicode):
+        return return True
+
+    return False
+
 def _find_user_home():
     return os.path.expanduser('~')
 
@@ -312,10 +320,12 @@ def _run_overrides(overrides):
             elif len(command) > 0:
                 _logger.debug(commands.getoutput(' '.join(command)))
 
-def pip(pkg_name, verbose=False, index=None):
+def pip(pkg_name, verbose=False, ignore_overrides=False, index=None):
     args = [
         'install',
     ]
+
+    use_index = ''
 
     if not _in_virtualenv():
         args.append('--user')
@@ -323,16 +333,19 @@ def pip(pkg_name, verbose=False, index=None):
     if verbose:
         args.append('-vvv')
 
-    if index is not None:
+    if _is_str23(index) and len(index.strip()) > 0:
         args.append('--isolated')
-        args.append('--index-url {0}'.format(index))
+        use_index = ['--index-url', index.strip()]
 
     packages = set(_pkg_name_list(pkg_name))
     orig_package_list_len = len(packages)
     packages = _subtract_installed(packages)
-    overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
 
-    _run_overrides(overrides)
+    if not ignore_overrides:
+        _run_overrides(_find_overrides(packages, _read_dependencies_link(_dependencies_link_location())))
+    else:
+        _logger.info('Ignoring overrides from dependencies.link')
+
     _refresh_available_packages()
 
     packages = _subtract_installed(packages)
@@ -341,7 +354,7 @@ def pip(pkg_name, verbose=False, index=None):
     args.extend(_per_package_args(packages, _config_options))
 
     if len(packages) > 0:
-        _pip.main(args + packages)
+        _pip.main(args + packages + use_index)
         _invalidate_cache()
         _refresh_available_packages()
     elif orig_package_list_len > 0:
