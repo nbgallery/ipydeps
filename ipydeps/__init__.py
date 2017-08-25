@@ -326,11 +326,9 @@ def pip(pkg_name, verbose=False, ignore_overrides=False):
     packages = set(_pkg_name_list(pkg_name))
     orig_package_list_len = len(packages)
     packages = _subtract_installed(packages)
-    overrides = {}
 
     if not ignore_overrides:
-        overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
-        _run_overrides(overrides)
+        _run_overrides(_find_overrides(packages, _read_dependencies_link(_dependencies_link_location())))
     else:
         _logger.info('Ignoring overrides from dependencies.link')
 
