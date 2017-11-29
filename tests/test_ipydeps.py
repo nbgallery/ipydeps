@@ -43,6 +43,23 @@ class PkgNameTests(unittest.TestCase):
         self.assertTrue('foofizz' in packages)
         self.assertTrue('pip' not in packages)
 
+    def test_version_specifier(self):
+        packages = _pkg_names('foo>=0.10.1')
+        self.assertEqual(len(packages), 1)
+        self.assertEqual(packages[0], 'foo>=0.10.1')
+
+    def test_version_specifier_no_micro(self):
+        packages = _pkg_names('foo>=0.10')
+        self.assertEqual(len(packages), 1)
+        self.assertEqual(packages[0], 'foo>=0.10')
+
+    def test_version_specifier_list(self):
+        packages = _pkg_name_list(['foo==10.1', 'bar', 'baz<5.5.5'])
+        self.assertEqual(len(packages), 3)
+        self.assertTrue('foo==10.1' in packages)
+        self.assertTrue('bar' in packages)
+        self.assertTrue('baz<5.5.5' in packages)
+
 class OverrideTests(unittest.TestCase):
     def test_no_overrides(self):
         names = set(['foo', 'bar', 'baz'])
