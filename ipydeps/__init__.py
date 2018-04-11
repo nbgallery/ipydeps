@@ -71,10 +71,6 @@ def _read_config(path):
 
 _config_options = _read_config(_config_location())
 
-if '--use-pypki2' in _config_options:
-    import pypki2
-    import pypki2.pipwrapper
-
 if sys.version_info.major == 3:
     from urllib.request import urlopen
     from urllib.error import HTTPError
@@ -89,6 +85,13 @@ else:
 
 _per_package_params = ['--allow-unverified', '--allow-external']
 _internal_params = ['--use-pypki2']
+
+def _get_pip_main(config_options):
+    if '--use-pypki2' in config_options:
+        import pypki2pip
+        return pypki2pip.pip
+
+    return _pip.main
 
 def _bin_to_utf8(d):
     if sys.version_info.major == 3:
@@ -338,7 +341,8 @@ def pip(pkg_name, verbose=False):
     args.extend(_per_package_args(packages, _config_options))
 
     if len(packages) > 0:
-        _pip.main(args + packages)
+        pip_main = _get_pip_main(_config_options)
+        pip_main(args + packages)
         _invalidate_cache()
         _refresh_available_packages()
     elif orig_package_list_len > 0:
