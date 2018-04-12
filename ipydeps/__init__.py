@@ -233,14 +233,24 @@ def _case_insensitive_dependencies_json(dep_json):
 
     return lowercased
 
+def _get_urlopener(config_options):
+    if '--use-pypki2' in config_options:
+        import pypki2config
+        ctx = pypki2config.ssl_context()
+        return lambda url: urlopen(url, context=ctx)
+
+    return urlopen
+
 def _read_dependencies_json(dep_link):
     dep_link = dep_link.strip()
 
     if len(dep_link) == 0:
         return {}
 
+    urlopener = _get_urlopener(_config_options)
+
     try:
-        resp = urlopen(dep_link)
+        resp = urlopener(dep_link)
     except HTTPError as e:
         _logger.error(_bin_to_utf8(e.read()))
         return {}
