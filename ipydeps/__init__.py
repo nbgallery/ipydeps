@@ -5,7 +5,6 @@ from time import sleep
 import json
 import logging
 import os
-import pip as _pip
 import pkg_resources
 import re
 import site
@@ -87,13 +86,17 @@ else:
 
 _per_package_params = ['--allow-unverified', '--allow-external']
 _internal_params = ['--use-pypki2']
+_pip_run_args = ['python', '-m', 'pip']
 
 def _get_pip_main(config_options):
     if '--use-pypki2' in config_options:
         import pypki2pip
         return pypki2pip.pip
 
-    return _pip.main
+    def pip_main(args):
+        return subprocess.check_call(_pip_run_args + args)
+
+    return pip_main
 
 def _bin_to_utf8(d):
     if sys.version_info.major == 3:
@@ -163,7 +166,6 @@ def _refresh_available_packages():
     and the main pkg_resources package, also used by pbr.
     '''
     for entry in sys.path:
-        _pip.utils.pkg_resources.working_set.add_entry(entry)
         pkg_resources.working_set.add_entry(entry)
 
 def _pkg_names(s):
@@ -292,7 +294,7 @@ def _find_overrides(packages, dep_link):
     return overrides
 
 def _already_installed():
-    return set([ pkg.project_name for pkg in _pip.get_installed_distributions() ])
+    return set([ pkg.project_name for pkg in pkg_resources.working_set ])
 
 def _subtract_installed(packages):
     packages = set(( p.lower() for p in packages))  # removes duplicates
