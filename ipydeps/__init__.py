@@ -5,10 +5,10 @@ from time import sleep
 import json
 import logging
 import os
-import pip as _pip
 import pkg_resources
 import re
 import site
+import subprocess
 import sys
 
 _logger = logging.getLogger('ipydeps')
@@ -74,24 +74,29 @@ _config_options = _read_config(_config_location())
 if sys.version_info.major == 3:
     from urllib.request import urlopen
     from urllib.error import HTTPError
-    import subprocess as commands
-    import importlib
+    from importlib import invalidate_caches as importlib_invalidate_caches
 elif sys.version_info.major == 2:
     from urllib2 import urlopen, HTTPError
-    import commands
+
+    def importlib_invalidate_caches():
+        pass
 else:
     _logger.error('Unknown version of Python: {v}'.format(v=sys.version_info.major))
 
 
 _per_package_params = ['--allow-unverified', '--allow-external']
 _internal_params = ['--use-pypki2']
+_pip_run_args = ['python', '-m', 'pip']
 
 def _get_pip_main(config_options):
     if '--use-pypki2' in config_options:
         import pypki2pip
         return pypki2pip.pip
 
-    return _pip.main
+    def pip_main(args):
+        return subprocess.check_call(_pip_run_args + args)
+
+    return pip_main
 
 def _bin_to_utf8(d):
     if sys.version_info.major == 3:
@@ -152,8 +157,7 @@ def _invalidate_cache():
     Invalidates the import cache so the next attempt to import a package
     will look for new import locations.
     '''
-    if sys.version_info.major == 3:
-        importlib.invalidate_caches()
+    importlib_invalidate_caches()
     sleep(2)
 
 def _refresh_available_packages():
@@ -162,7 +166,6 @@ def _refresh_available_packages():
     and the main pkg_resources package, also used by pbr.
     '''
     for entry in sys.path:
-        _pip.utils.pkg_resources.working_set.add_entry(entry)
         pkg_resources.working_set.add_entry(entry)
 
 def _pkg_names(s):
@@ -291,7 +294,7 @@ def _find_overrides(packages, dep_link):
     return overrides
 
 def _already_installed():
-    return set([ pkg.project_name for pkg in _pip.get_installed_distributions() ])
+    return set([ pkg.project_name for pkg in pkg_resources.working_set ])
 
 def _subtract_installed(packages):
     packages = set(( p.lower() for p in packages))  # removes duplicates
@@ -313,8 +316,8 @@ def package(pkg_name):
     packages = _pkg_name_list(pkg_name)
 
     for pkg in packages:
-        _logger.debug(commands.getoutput('apk update'))
-        _logger.debug(commands.getoutput('apk add '+pkg))
+        _logger.debug(subprocess.getoutput('apk update'))
+        _logger.debug(subprocess.getoutput('apk add '+pkg))
 
 def _run_overrides(overrides):
     for name, cmds in overrides.items():
@@ -324,7 +327,7 @@ def _run_overrides(overrides):
             if command[0] == 'package' and len(command) > 1:
                 package(command[1:])
             elif len(command) > 0:
-                _logger.debug(commands.getoutput(' '.join(command)))
+                _logger.debug(subprocess.getoutput(' '.join(command)))
 
 def pip(pkg_name, verbose=False):
     args = [
