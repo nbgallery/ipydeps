@@ -86,7 +86,7 @@ else:
 
 _per_package_params = ['--allow-unverified', '--allow-external']
 _internal_params = ['--use-pypki2']
-_pip_run_args = ['python', '-m', 'pip']
+_pip_run_args = [sys.executable, '-m', 'pip']
 
 def _get_pip_main(config_options):
     if '--use-pypki2' in config_options:
