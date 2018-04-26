@@ -88,23 +88,16 @@ _per_package_params = ['--allow-unverified', '--allow-external']
 _internal_params = ['--use-pypki2']
 _pip_run_args = [sys.executable, '-m', 'pip']
 
-def _get_pip_main(config_options):
+def _get_pip_exec(config_options):
     if '--use-pypki2' in config_options:
         import pypki2pip
+        #TODO: make pypki2's pip wrapper match ipydeps' interface
         return pypki2pip.pip
 
-    def pip_main(args):
-        return subprocess.check_call(_pip_run_args + args)
+    def _pip_exec(args):
+        return _run_get_stderr(_pip_run_args+args)
 
-    return pip_main
-
-def _bin_to_utf8(d):
-    if sys.version_info.major == 3:
-        return str(d, encoding='utf8')
-    elif sys.version_info.major == 2:
-        return unicode(d)
-    else:
-        return d
+    return _pip_exec
 
 def _str_to_bytes(s):
     if sys.version_info.major == 3:
@@ -113,6 +106,14 @@ def _str_to_bytes(s):
         return s
     else:
         return s
+
+def _bytes_to_str(b):
+    if sys.version_info.major == 3:
+        return str(b, encoding='utf8')
+    elif sys.version_info.major == 2:
+        return b
+    else:
+        return b
 
 def _user_site_packages():
     if not _in_virtualenv():
@@ -255,10 +256,10 @@ def _read_dependencies_json(dep_link):
     try:
         resp = urlopener(dep_link)
     except HTTPError as e:
-        _logger.error(_bin_to_utf8(e.read()))
+        _logger.error(_bytes_to_str(e.read()))
         return {}
 
-    d = _bin_to_utf8(resp.read())
+    d = _bytes_to_str(resp.read())
 
     try:
         j = json.loads(d)
@@ -293,12 +294,37 @@ def _find_overrides(packages, dep_link):
 
     return overrides
 
+def _run_get_stderr(cmd):
+    returncode = 0
+    err = None
+
+    try:
+        subprocess.check_output(cmd, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        returncode = e.returncode
+        err = _bytes_to_str(e.stderr)
+
+    return returncode, err
+
+def _get_freeze_package_name(info):
+    name, version = info.split('==')
+    return name.strip()
+
+def _pip_freeze_packages():
+    pkgs = subprocess.check_output(_pip_run_args + ['freeze','--all'])
+    pkgs = _bytes_to_str(pkgs).split('\n')
+    pkgs = [ p for p in pkgs if len(p) > 0 ]
+    pkgs = [ _get_freeze_package_name(p) for p in pkgs ]
+    return pkgs
+
 def _already_installed():
-    return set([ pkg.project_name for pkg in pkg_resources.working_set ])
+    pr = set([ pkg.project_name for pkg in pkg_resources.working_set ])
+    pf = set(_pip_freeze_packages())
+    return { p.lower() for p in pr.union(pf) }
 
 def _subtract_installed(packages):
     packages = set(( p.lower() for p in packages))  # removes duplicates
-    installed = [ x.lower() for x in _already_installed() ]  # lowercase everything for comparison
+    installed = _already_installed()
     ret = set()
 
     # This could be done with simple set() math, but we want to log each
@@ -329,10 +355,20 @@ def _run_overrides(overrides):
             elif len(command) > 0:
                 _logger.debug(subprocess.getoutput(' '.join(command)))
 
+def _log_comparison(before, after):
+    new_packages = after - before
+
+    if len(new_packages) == 0:
+        _logger.warning('No new packages installed')
+    elif len(new_packages) > 0:
+        _logger.info('New packages installed: {0}'.format(', '.join(sorted(list(new_packages)))))
+
 def pip(pkg_name, verbose=False):
     args = [
         'install',
     ]
+
+    packages_before_install = _already_installed()
 
     if not _in_virtualenv():
         args.append('--user')
@@ -354,14 +390,17 @@ def pip(pkg_name, verbose=False):
     args.extend(_per_package_args(packages, _config_options))
 
     if len(packages) > 0:
-        pip_main = _get_pip_main(_config_options)
-        pip_main(args + packages)
+        pip_exec = _get_pip_exec(_config_options)
+        returncode, err = pip_exec(args + packages)
+
+        if returncode != 0 and err is not None:
+            _logger.error(err)
+
         _invalidate_cache()
         _refresh_available_packages()
-    elif orig_package_list_len > 0:
-        _logger.info('All requested packages already installed')
-    else:
-        _logger.warning('no packages specified')
+
+    packages_after_install = _already_installed()
+    _log_comparison(packages_before_install, packages_after_install)
 
 def _make_user_site_packages():
     if not _in_virtualenv():

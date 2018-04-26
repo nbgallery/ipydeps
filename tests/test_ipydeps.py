@@ -15,6 +15,7 @@ _logger.addHandler(_log_handler)
 
 from ipydeps import _config_location
 from ipydeps import _find_overrides
+from ipydeps import _get_freeze_package_name
 from ipydeps import _per_package_args
 from ipydeps import _pkg_names
 from ipydeps import _pkg_name_list
@@ -59,6 +60,10 @@ class PkgNameTests(unittest.TestCase):
         self.assertTrue('foo==10.1' in packages)
         self.assertTrue('bar' in packages)
         self.assertTrue('baz<5.5.5' in packages)
+
+    def test_freeze_name_parsing(self):
+        name = _get_freeze_package_name('six==1.10.0')
+        self.assertEqual(name, 'six')
 
 class OverrideTests(unittest.TestCase):
     def test_no_overrides(self):
