@@ -12,7 +12,7 @@ setup(
     keywords='pip install setup jupyter notebook dependencies'.split(),
     url='https://github.com/nbgallery/ipydeps',
     packages=['ipydeps'],
-    install_requires=['pip', 'setuptools', 'pypki2>=0.10.0'],
+    install_requires=['pip', 'setuptools', 'pypki2>=0.10.1'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Topic :: Utilities',

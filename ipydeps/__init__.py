@@ -12,7 +12,8 @@ import subprocess
 import sys
 
 _logger = logging.getLogger('ipydeps')
-_logger.addHandler(logging.NullHandler())
+_logger.addHandler(logging.StreamHandler())
+_logger.setLevel(logging.DEBUG)
 
 def _find_user_home():
     return os.path.expanduser('~')
@@ -89,13 +90,16 @@ _internal_params = ['--use-pypki2']
 _pip_run_args = [sys.executable, '-m', 'pip']
 
 def _get_pip_exec(config_options):
-    if '--use-pypki2' in config_options:
-        import pypki2pip
-        #TODO: make pypki2's pip wrapper match ipydeps' interface
-        return pypki2pip.pip
-
     def _pip_exec(args):
         return _run_get_stderr(_pip_run_args+args)
+
+    if '--use-pypki2' in config_options:
+        import pypki2pip
+
+        def _pip_pki_exec(args):
+            return pypki2pip.pip_pki_exec(_pip_exec, args)
+
+        return _pip_pki_exec
 
     return _pip_exec
 
@@ -324,19 +328,7 @@ def _already_installed():
 
 def _subtract_installed(packages):
     packages = set(( p.lower() for p in packages))  # removes duplicates
-    installed = _already_installed()
-    ret = set()
-
-    # This could be done with simple set() math, but we want to log each
-    # package that's already installed.
-    for pkg in packages:
-        if pkg in installed:
-            _logger.info('{0} is installed'.format(pkg))
-        else:
-            _logger.info('{0} will be installed'.format(pkg))
-            ret.add(pkg)
-
-    return ret
+    return packages - _already_installed()
 
 def package(pkg_name):
     packages = _pkg_name_list(pkg_name)
@@ -347,7 +339,7 @@ def package(pkg_name):
 
 def _run_overrides(overrides):
     for name, cmds in overrides.items():
-        _logger.debug('Working overrides for {0}'.format(name))
+        _logger.info('Executing overrides for {0}'.format(name))
 
         for command in cmds:
             if command[0] == 'package' and len(command) > 1:
@@ -355,7 +347,13 @@ def _run_overrides(overrides):
             elif len(command) > 0:
                 _logger.debug(subprocess.getoutput(' '.join(command)))
 
-def _log_comparison(before, after):
+def _log_already_installed(before, requested):
+    already_installed = before.intersection(requested)
+
+    if len(already_installed) > 0:
+        _logger.info('Packages already installed: {0}'.format(', '.join(sorted(list(already_installed)))))
+
+def _log_before_after(before, after):
     new_packages = after - before
 
     if len(new_packages) == 0:
@@ -377,7 +375,7 @@ def pip(pkg_name, verbose=False):
         args.append('-vvv')
 
     packages = set(_pkg_name_list(pkg_name))
-    orig_package_list_len = len(packages)
+    _log_already_installed(packages_before_install, packages)
     packages = _subtract_installed(packages)
     overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
 
@@ -400,7 +398,7 @@ def pip(pkg_name, verbose=False):
         _refresh_available_packages()
 
     packages_after_install = _already_installed()
-    _log_comparison(packages_before_install, packages_after_install)
+    _log_before_after(packages_before_install, packages_after_install)
 
 def _make_user_site_packages():
     if not _in_virtualenv():
