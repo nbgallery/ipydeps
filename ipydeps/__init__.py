@@ -1,5 +1,8 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
+from .utils import _in_ipython
+
+from functools import partial
 from time import sleep
 
 import json
@@ -11,9 +14,14 @@ import site
 import subprocess
 import sys
 
-_logger = logging.getLogger('ipydeps')
-_logger.addHandler(logging.StreamHandler())
-_logger.setLevel(logging.DEBUG)
+if _in_ipython():
+    print('In IPython')
+    from .logger import _IPythonLogger
+    _logger = _IPythonLogger()
+else:
+    _logger = logging.getLogger('ipydeps')
+    _logger.addHandler(logging.StreamHandler())
+    _logger.setLevel(logging.DEBUG)
 
 def _find_user_home():
     return os.path.expanduser('~')
@@ -90,18 +98,19 @@ _internal_params = ['--use-pypki2']
 _pip_run_args = [sys.executable, '-m', 'pip']
 
 def _get_pip_exec(config_options):
-    def _pip_exec(args):
-        return _run_get_stderr(_pip_run_args+args)
+    def _pip_exec(args1, args2):
+        return _run_get_stderr(_pip_run_args+args1+args2)
 
     if '--use-pypki2' in config_options:
         import pypki2pip
 
         def _pip_pki_exec(args):
-            return pypki2pip.pip_pki_exec(_pip_exec, args)
+            f = partial(_pip_exec, args)
+            return pypki2pip.pip_pki_exec(f)
 
         return _pip_pki_exec
 
-    return _pip_exec
+    return partial(_pip_exec, [])
 
 def _str_to_bytes(s):
     if sys.version_info.major == 3:
@@ -306,7 +315,13 @@ def _run_get_stderr(cmd):
         subprocess.check_output(cmd, stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         returncode = e.returncode
-        err = _bytes_to_str(e.stderr)
+
+        if sys.version_info.major == 3:
+            err = _bytes_to_str(e.stderr)
+        elif sys.version_info.major == 2:
+            err = e.output
+        else:
+            raise Exception('Invalid version of Python')
 
     return returncode, err
 
@@ -388,6 +403,7 @@ def pip(pkg_name, verbose=False):
     args.extend(_per_package_args(packages, _config_options))
 
     if len(packages) > 0:
+        _logger.debug('Running pip to install {0}'.format(', '.join(sorted(packages))))
         pip_exec = _get_pip_exec(_config_options)
         returncode, err = pip_exec(args + packages)
 
