@@ -15,7 +15,6 @@ import subprocess
 import sys
 
 if _in_ipython():
-    print('In IPython')
     from .logger import _IPythonLogger
     _logger = _IPythonLogger()
 else:
@@ -345,12 +344,20 @@ def _subtract_installed(packages):
     packages = set(( p.lower() for p in packages))  # removes duplicates
     return packages - _already_installed()
 
+def _run_and_log_error(cmd):
+    returncode, err = _run_get_stderr(cmd)
+
+    if returncode != 0 and err is not None:
+        _logger.error(err)
+
 def package(pkg_name):
     packages = _pkg_name_list(pkg_name)
 
     for pkg in packages:
-        _logger.debug(subprocess.getoutput('apk update'))
-        _logger.debug(subprocess.getoutput('apk add '+pkg))
+        _logger.debug('apk update')
+        _run_and_log_error(['apk', 'update'])
+        _logger.debug('apk add '+pkg)
+        _run_and_log_error(['apk', 'add', pkg])
 
 def _run_overrides(overrides):
     for name, cmds in overrides.items():
@@ -360,7 +367,8 @@ def _run_overrides(overrides):
             if command[0] == 'package' and len(command) > 1:
                 package(command[1:])
             elif len(command) > 0:
-                _logger.debug(subprocess.getoutput(' '.join(command)))
+                _logger.debug(' '.join(command))
+                _run_and_log_error(command)
 
 def _log_already_installed(before, requested):
     already_installed = before.intersection(requested)
@@ -415,6 +423,7 @@ def pip(pkg_name, verbose=False):
 
     packages_after_install = _already_installed()
     _log_before_after(packages_before_install, packages_after_install)
+    _logger.debug('Done')
 
 def _make_user_site_packages():
     if not _in_virtualenv():
