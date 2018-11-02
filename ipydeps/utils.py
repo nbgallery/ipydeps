@@ -1,5 +1,6 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
+import pkgutil
 import sys
 
 if sys.version_info.major == 3:
@@ -24,4 +25,20 @@ def _in_ipython():
     except ImportError:
         return False
 
+    return False
+
+_stdlib_list = []
+
+def _load_stdlib_packages():
+    if sys.version_info.major == 3:
+        _stdlib_list = pkgutil.get_data(__name__, 'data/libs3.txt')
+    elif sys.version_info.major == 2:
+        _stdlib_list = pkgutil.get_data(__name__, 'data/libs2.txt')
+
+    _stdlib_list = [ x.strip() for x in _stdlib_list.split('\n') ]
+    _stdlib_list = [ x for x in _stdlib_list if len(x) > 0 ]
+
+def _in_stdlib(package):
+    if package.lower().strip() in _stdlib_list:
+        return True
     return False

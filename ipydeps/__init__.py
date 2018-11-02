@@ -1,6 +1,6 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-from .utils import _in_ipython
+from .utils import _in_ipython, _in_stdlib_list, _load_stdlib_list
 
 from functools import partial
 from time import sleep
@@ -344,6 +344,10 @@ def _subtract_installed(packages):
     packages = set(( p.lower() for p in packages))  # removes duplicates
     return packages - _already_installed()
 
+def _subtract_stdlib(packages):
+    packages = set(( p.lower() for p in packages if not _in_stdlib(p)))
+    return packages
+
 def _run_and_log_error(cmd):
     returncode, err = _run_get_stderr(cmd)
 
@@ -376,6 +380,11 @@ def _log_already_installed(before, requested):
     if len(already_installed) > 0:
         _logger.info('Packages already installed: {0}'.format(', '.join(sorted(list(already_installed)))))
 
+def _log_stdlib_packages(packages):
+    for package in packages:
+        if _in_stdlib(package):
+            _.logger.error('{0} is part of the Python standard library.  Remove it from the list to remove this error.'.format(package))
+
 def _log_before_after(before, after):
     new_packages = after - before
 
@@ -398,6 +407,8 @@ def pip(pkg_name, verbose=False):
         args.append('-vvv')
 
     packages = set(_pkg_name_list(pkg_name))
+    _log_stdlib_packages(packages)
+    packages = _subtract_stdlib(packages)
     _log_already_installed(packages_before_install, packages)
     packages = _subtract_installed(packages)
     overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
@@ -439,3 +450,4 @@ def _make_user_site_packages():
             sys.path.append(_user_site_packages())
 
 _make_user_site_packages()
+_load_stdlib_list()
