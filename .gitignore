@@ -1,4 +1,5 @@
 dist
 ipydeps.egg-info
 build
+Pipfile.lock
 *.pyc

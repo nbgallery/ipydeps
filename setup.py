@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='ipydeps',
-    version='0.7.0',
+    version='0.8.0',
     author='Bill Allen',
     author_email='photo.allen@gmail.com',
     description='A pip interface wrapper for installing packages from within Jupyter notebooks.',
@@ -12,6 +12,7 @@ setup(
     keywords='pip install setup jupyter notebook dependencies'.split(),
     url='https://github.com/nbgallery/ipydeps',
     packages=['ipydeps'],
+    package_data={'ipydeps': ['data/*.txt']},
     install_requires=['pip', 'setuptools', 'pypki2>=0.10.1'],
     classifiers=[
         'Development Status :: 4 - Beta',
