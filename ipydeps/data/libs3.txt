@@ -15,7 +15,6 @@ binhex
 bisect
 builtins
 bz2
-cprofile
 calendar
 cgi
 cgitb
@@ -32,6 +31,7 @@ configparser
 contextlib
 copy
 copyreg
+cprofile
 crypt
 csv
 ctypes

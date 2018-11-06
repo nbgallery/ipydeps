@@ -27,18 +27,15 @@ def _in_ipython():
 
     return False
 
-_stdlib_list = []
+def _stdlib_packages(version=sys.version_info.major):
+    stdlib_list = b''
 
-def _load_stdlib_packages():
-    if sys.version_info.major == 3:
-        _stdlib_list = pkgutil.get_data(__name__, 'data/libs3.txt')
-    elif sys.version_info.major == 2:
-        _stdlib_list = pkgutil.get_data(__name__, 'data/libs2.txt')
+    if version == 3:
+        stdlib_list = pkgutil.get_data(__name__, 'data/libs3.txt')
+    elif version == 2:
+        stdlib_list = pkgutil.get_data(__name__, 'data/libs2.txt')
 
-    _stdlib_list = [ x.strip() for x in _stdlib_list.split('\n') ]
-    _stdlib_list = [ x for x in _stdlib_list if len(x) > 0 ]
-
-def _in_stdlib(package):
-    if package.lower().strip() in _stdlib_list:
-        return True
-    return False
+    stdlib_list = str(stdlib_list, encoding='utf8')
+    stdlib_list = [ x.strip() for x in stdlib_list.split('\n') ]
+    stdlib_list = [ x for x in stdlib_list if len(x) > 0 ]
+    return set(stdlib_list)
