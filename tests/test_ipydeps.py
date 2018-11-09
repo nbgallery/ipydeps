@@ -24,7 +24,6 @@ from ipydeps import _py_name_minor
 from ipydeps import _py_name_micro
 from ipydeps import _read_config
 from ipydeps import _remove_internal_options
-from ipydeps import _str_to_bytes
 from ipydeps import _subtract_installed
 from ipydeps import _write_config
 

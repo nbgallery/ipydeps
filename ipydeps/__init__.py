@@ -1,6 +1,6 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-from .utils import _in_ipython, _stdlib_packages
+from .utils import _bytes_to_str, _in_ipython, _stdlib_packages
 
 from functools import partial
 from time import sleep
@@ -110,22 +110,6 @@ def _get_pip_exec(config_options):
         return _pip_pki_exec
 
     return partial(_pip_exec, [])
-
-def _str_to_bytes(s):
-    if sys.version_info.major == 3:
-        return bytes(s, encoding='utf8')
-    elif sys.version_info.major == 2:
-        return s
-    else:
-        return s
-
-def _bytes_to_str(b):
-    if sys.version_info.major == 3:
-        return str(b, encoding='utf8')
-    elif sys.version_info.major == 2:
-        return b
-    else:
-        return b
 
 def _user_site_packages():
     if not _in_virtualenv():
