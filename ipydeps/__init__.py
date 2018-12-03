@@ -376,7 +376,7 @@ def _log_before_after(before, after):
     elif len(new_packages) > 0:
         _logger.info('New packages installed: {0}'.format(', '.join(sorted(list(new_packages)))))
 
-def pip(pkg_name, verbose=False):
+def pip(pkg_name, verbose=False, upgrade=False):
     args = [
         'install',
     ]
@@ -388,6 +388,9 @@ def pip(pkg_name, verbose=False):
 
     if verbose:
         args.append('-vvv')
+
+    if upgrade:
+        args.append('--upgrade')
 
     packages = set(_pkg_name_list(pkg_name))
 
