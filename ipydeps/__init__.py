@@ -312,12 +312,15 @@ def _get_freeze_package_name(info):
     name, version = info.split('==')
     return name.strip()
 
-def _pip_freeze_packages():
-    pkgs = subprocess.check_output(_pip_run_args + ['freeze','--all'])
+def _process_pip_freeze_output(pkgs):
     pkgs = _bytes_to_str(pkgs).split('\n')
-    pkgs = [ p for p in pkgs if len(p) > 0 ]
+    pkgs = [ p for p in pkgs if len(p) > 0 and '==' in p ]
     pkgs = [ _get_freeze_package_name(p) for p in pkgs ]
     return pkgs
+
+def _pip_freeze_packages():
+    pkgs = subprocess.check_output(_pip_run_args + ['freeze','--all'])
+    return _process_pip_freeze_output(pkgs)
 
 def _already_installed():
     pr = set([ pkg.project_name for pkg in pkg_resources.working_set ])

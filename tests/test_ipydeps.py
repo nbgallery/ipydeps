@@ -19,6 +19,7 @@ from ipydeps import _get_freeze_package_name
 from ipydeps import _per_package_args
 from ipydeps import _pkg_names
 from ipydeps import _pkg_name_list
+from ipydeps import _process_pip_freeze_output
 from ipydeps import _py_name_major
 from ipydeps import _py_name_minor
 from ipydeps import _py_name_micro
@@ -63,6 +64,15 @@ class PkgNameTests(unittest.TestCase):
     def test_freeze_name_parsing(self):
         name = _get_freeze_package_name('six==1.10.0')
         self.assertEqual(name, 'six')
+
+    def test_freeze_editable_name_filtering(self):
+        pkgs = b'''arrow==0.12.1
+-e git+git@gitserver.com:kafonek/package_name@githash#egg-package
+asn1crypto==0.23.0'''
+        pkgs = _process_pip_freeze_output(pkgs)
+        self.assertEqual(len(pkgs), 2)
+        self.assertTrue('arrow' in pkgs)
+        self.assertTrue('asn1crypto' in pkgs)
 
 class OverrideTests(unittest.TestCase):
     def test_no_overrides(self):

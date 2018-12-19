@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='ipydeps',
-    version='0.8.0',
+    version='0.8.1',
     author='Bill Allen',
     author_email='photo.allen@gmail.com',
     description='A pip interface wrapper for installing packages from within Jupyter notebooks.',
