@@ -97,8 +97,8 @@ _internal_params = ['--use-pypki2']
 _pip_run_args = [sys.executable, '-m', 'pip']
 
 def _get_pip_exec(config_options):
-    def _pip_exec(args1, args2):
-        return _run_get_stderr(_pip_run_args+args1+args2)
+    def _pip_exec(args1, args2, **kwargs):
+        return _run_get_stderr(_pip_run_args+args1+args2, **kwargs)
 
     if '--use-pypki2' in config_options:
         import pypki2pip
@@ -290,23 +290,40 @@ def _find_overrides(packages, dep_link):
 
     return overrides
 
-def _run_get_stderr(cmd):
+def _run_get_stderr(cmd, progress=False):
     returncode = 0
     err = None
-
-    try:
-        subprocess.check_output(cmd, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        returncode = e.returncode
-
-        if sys.version_info.major == 3:
-            err = _bytes_to_str(e.stderr)
-        elif sys.version_info.major == 2:
-            err = e.output
+    
+    packages = cmd[5:]
+    cmd = cmd[:5]
+    
+    invalid_packages = {}
+    
+    if progress:
+        import tqdm
+        if _in_ipython():
+            progress_bar = tqdm.tqdm_notebook(total=len(packages), desc="Installing...")
         else:
-            raise Exception('Invalid version of Python')
-
-    return returncode, err
+            progress_bar = tqdm.tqdm(total=len(packages), desc="Installing...")
+            
+    for package in packages:
+        package_cmd = cmd + [package]
+        try:
+            subprocess.check_output(package_cmd, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            returncode = e.returncode
+            if sys.version_info.major == 3:
+                err = _bytes_to_str(e.stderr)
+            elif sys.version_info.major == 2:
+                err = e.output
+            else:
+                raise Exception('Invalid version of Python')
+            invalid_packages[package] = (returncode, err.strip())
+            
+        if progress:
+            progress_bar.update()
+            
+    return invalid_packages
 
 def _get_freeze_package_name(info):
     name, version = info.split('==')
@@ -335,10 +352,11 @@ def _subtract_stdlib(stdlib_packages, packages):
     return packages - stdlib_packages
 
 def _run_and_log_error(cmd):
-    returncode, err = _run_get_stderr(cmd)
-
-    if returncode != 0 and err is not None:
-        _logger.error(err)
+    package_errs = _run_get_stderr(cmd)
+    if package_errs:
+        for package, (returncode, err) in package_errs.items():
+            if returncode != 0 and err is not None:
+                _logger.error(err)
 
 def package(pkg_name):
     packages = _pkg_name_list(pkg_name)
@@ -371,15 +389,17 @@ def _log_stdlib_packages(stdlib_packages, packages):
         if package in stdlib_packages:
             _logger.warning('{0} is part of the Python standard library and will be skipped.  Remove it from the list to remove this warning.'.format(package))
 
-def _log_before_after(before, after):
+def _log_before_after(before, after, errors):
     new_packages = after - before
 
     if len(new_packages) == 0:
         _logger.warning('No new packages installed')
     elif len(new_packages) > 0:
         _logger.info('New packages installed: {0}'.format(', '.join(sorted(list(new_packages)))))
+    if errors:
+        _logger.error('Unable to install the following packages: {0}'.format(', '.join(sorted(list(errors)))))
 
-def pip(pkg_name, verbose=False):
+def pip(pkg_name, verbose=False, progress=False):
     args = [
         'install',
     ]
@@ -418,16 +438,17 @@ def pip(pkg_name, verbose=False):
     if len(packages) > 0:
         _logger.debug('Running pip to install {0}'.format(', '.join(sorted(packages))))
         pip_exec = _get_pip_exec(_config_options)
-        returncode, err = pip_exec(args + packages)
-
-        if returncode != 0 and err is not None:
-            _logger.error(err)
-
+        package_errs = pip_exec(args + packages, progress=progress)
         _invalidate_cache()
         _refresh_available_packages()
 
     packages_after_install = _already_installed()
-    _log_before_after(packages_before_install, packages_after_install)
+    _log_before_after(packages_before_install, packages_after_install, list(package_errs.keys()))
+    
+    for package, (returncode, err) in package_errs.items():
+        if returncode != 0 and err is not None:
+            _logger.error(err)
+                
     _logger.debug('Done')
 
 def _make_user_site_packages():
