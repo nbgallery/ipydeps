@@ -13,7 +13,7 @@ setup(
     url='https://github.com/nbgallery/ipydeps',
     packages=['ipydeps'],
     package_data={'ipydeps': ['data/*.txt']},
-    install_requires=['pip', 'setuptools', 'pypki2>=0.10.1'],
+    install_requires=['pip', 'setuptools', 'pypki2>=0.10.1', 'tqdm'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Topic :: Utilities',
