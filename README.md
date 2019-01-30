@@ -1,6 +1,8 @@
 # ipydeps
 
-A friendly wrapper around pip for installation of packages directly within Jupyter notebooks.
+A friendly way to specify your Jupyter notebook's dependencies right at the top of the notebook.
+This helps ensure that other users have the Python packages they need to successfully run your notebook.
+It also includes features for installation accelerators/overrides, blacklisting, and PKI integration.
 
 ## Usage
 

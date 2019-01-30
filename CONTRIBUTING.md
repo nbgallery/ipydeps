@@ -2,11 +2,13 @@
 
 #### **Did you find a bug?**
 
-* **Ensure the bug was not already reported** by searching on GitHub under [Issues](https://github.com/jupyter-gallery/ipydeps/issues).
+* **Ensure the bug was not already reported** by searching on GitHub under [Issues](https://github.com/nbgallery/ipydeps/issues).
 
-* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/jupyter-gallery/ipydeps/issues/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample** or an **executable test case** demonstrating the expected behavior that is not occurring.
+* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/nbgallery/ipydeps/issues/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample** or an **executable test case** demonstrating the expected behavior that is not occurring.
 
 #### **Did you write a patch that fixes a bug?**
+
+* Run tox to make sure current tests still pass.
 
 * Open a new GitHub pull request with the patch.
 
@@ -20,13 +22,13 @@ Unsolicited changes that are cosmetic in nature and do not add anything substant
 
 #### **Do you intend to add a new feature or change an existing one?**
 
-* Please [submit an issue](https://github.com/jupyter-gallery/ipydeps/issues/new) for further discussion on what you intend to add/change.
+* Please [submit an issue](https://github.com/nbgallery/ipydeps/issues/new) for further discussion on what you intend to add/change.
 
 #### **Do you have questions about the source code?**
 
 * Please try Googling first.
 
-* Find one of the major contributors via the [commit log](https://github.com/jupyter-gallery/ipydeps/commits/master) and contact them to get pointed in the right direction.
+* Find one of the major contributors via the [commit log](https://github.com/nbgallery/ipydeps/commits/master) and contact them to get pointed in the right direction.
 
 #### **Do you want to contribute to the documentation?**
 
