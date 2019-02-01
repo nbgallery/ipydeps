@@ -91,6 +91,7 @@ The dependencies.json file should look something like this contrived example:
     "numpy": [
       [ "yum", "install", "special-prerequisite-for-python-3.5" ],
       [ "yum", "install", "python3-numpy" ]
+    ]
   },
   "python-2.7": {
     "foo": [
