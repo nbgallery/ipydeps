@@ -3,7 +3,7 @@
 A friendly way to specify your Jupyter notebook's dependencies right at the top of the notebook.
 This helps ensure that other users have the Python packages they need to successfully run your notebook.
 
-Unlike `!pip install`, ipydeps makes sure that the packages get installed into the same Python environment that's executing your notebooks code cells.
+Unlike `!pip install`, ipydeps makes sure that the packages get installed into the same Python environment that's executing your notebook's code cells.
 No more `!pip`, `!pip3`, `!pip -V` frustrations for you and your users.
 
 It also includes features for installation accelerators via centrally-managed overrides, and PKI integration.
@@ -61,11 +61,45 @@ Sometimes there's a better way to install certain packages, such as a pre-built 
 
 For example, maybe you want to install numpy, so you call ipydeps.pip('numpy').  However, numpy can take a while to install from scratch.  If there's a pre-built version of numpy available, it can install in seconds instead of minutes.  
 
-dependencies.link points to a dependencies.json file which maps the original package names to their overrides.
+dependencies.link contains a URL pointing to a dependencies.json file which maps the original package names to their overrides.
 
 Only place a trusted link in your dependencies.link file, since dependencies.json could contain malicious commands that get executed as you.
 
 Also note that all package names are handled in a case-insensitive manner (just like pip), so ipydeps will output a warning if it finds duplicate packages listed in your dependencies.json file.
+
+### dependencies.json
+
+dependencies.link contains a URL pointing to a dependencies.json file which maps the original package names to their overrides.
+The dependencies.json file should look something like this contrived example:
+
+```json
+{
+  "python-3": {
+    "numpy": [
+      [ "yum", "install", "python3-numpy" ]
+    ],
+    "labsetup": [
+      [ "yum", "install", "python3-numpy" ],
+      [ "yum", "install", "python3-scikitlearn" ],
+      [ "yum", "install", "python3-pandas" ],
+      [ "yum", "install", "python3-pymc3" ]
+    ]
+  },
+  "python-3.5": {
+    "numpy": [
+      [ "yum", "install", "special-prerequisite-for-python-3.5" ],
+      [ "yum", "install", "python3-numpy" ]
+  },
+  "python-2.7": {
+    "foo": [
+      [ "echo", "Why", "are", "you", "still", "using", "python", "2.7?" ]
+    ]
+  }
+}
+```
+
+Note that ipydeps will use the most specific override it can find.
+In the example above, a Python 3.5 environment will use the python-3.5 override for numpy.  The python-3 override for numpy will be ignored.
 
 ### Windows support
 
