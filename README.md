@@ -65,7 +65,9 @@ dependencies.link contains a URL pointing to a dependencies.json file which maps
 
 Only place a trusted link in your dependencies.link file, since dependencies.json could contain malicious commands that get executed as you.
 
-Also note that all package names are handled in a case-insensitive manner (just like pip), so ipydeps will output a warning if it finds duplicate packages listed in your dependencies.json file.
+If you are managing multiple Jupyter environment deployments, you can have different dependencies.link files pointing at different dependencies.json files for each environment.
+For example, Fedora deployments can have a dependencies.link that points to https://trusted.host/dependencies-fedora.json, while FreeBSD deployments can have a dependencies.link that points to https://trusted.host/dependencies-freebsd.json.
+This allows multiple environment deployments to be centrally managed by changing their corresponding dependencies.json files.
 
 ### dependencies.json
 
@@ -100,6 +102,8 @@ The dependencies.json file should look something like this contrived example:
 
 Note that ipydeps will use the most specific override it can find.
 In the example above, a Python 3.5 environment will use the python-3.5 override for numpy.  The python-3 override for numpy will be ignored.
+
+Also note that all package names are handled in a case-insensitive manner (just like pip), so ipydeps will output a warning if it finds duplicate packages listed in your dependencies.json file.
 
 ### Windows support
 
