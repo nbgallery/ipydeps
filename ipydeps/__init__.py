@@ -305,7 +305,7 @@ def _run_get_stderr(cmd, progress=False):
         else:
             raise Exception('Invalid version of Python')
             
-    return (returncode, err)
+    return returncode, err
 
 def _get_freeze_package_name(info):
     name, version = info.split('==')
@@ -428,9 +428,12 @@ def pip(pkg_name, verbose=False, progress=False):
         pip_exec = _get_pip_exec(_config_options)
         package_errs = {}
         for package in packages:
-            resp = pip_exec(args + [package], progress=progress)
-            package_errs[package] = resp
-            if progress:
+            _logger.debug('Installing {0}...'.format(package))
+            returncode, err = pip_exec(args + [package], progress=progress)
+            if err:
+                package_errs[package] = err
+            # only update the bar if a package is successfully installed?
+            if progress and not err:
                 progress_bar.update()
             _invalidate_cache()
             _refresh_available_packages()
@@ -438,9 +441,8 @@ def pip(pkg_name, verbose=False, progress=False):
     packages_after_install = _already_installed()
     _log_before_after(packages_before_install, packages_after_install, list(package_errs.keys()))
     
-    for package, (returncode, err) in package_errs.items():
-        if returncode != 0 and err is not None:
-            _logger.error(err)
+    for package, err in package_errs.items():
+        _logger.error(err)
                 
     _logger.debug('Done')
 
