@@ -294,36 +294,18 @@ def _run_get_stderr(cmd, progress=False):
     returncode = 0
     err = None
     
-    packages = cmd[5:]
-    cmd = cmd[:5]
-    
-    invalid_packages = {}
-    
-    if progress:
-        import tqdm
-        if _in_ipython():
-            progress_bar = tqdm.tqdm_notebook(total=len(packages), desc="Installing...")
+    try:
+        subprocess.check_output(cmd, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        returncode = e.returncode
+        if sys.version_info.major == 3:
+            err = _bytes_to_str(e.stderr)
+        elif sys.version_info.major == 2:
+            err = e.output
         else:
-            progress_bar = tqdm.tqdm(total=len(packages), desc="Installing...")
+            raise Exception('Invalid version of Python')
             
-    for package in packages:
-        package_cmd = cmd + [package]
-        try:
-            subprocess.check_output(package_cmd, stderr=subprocess.PIPE)
-        except subprocess.CalledProcessError as e:
-            returncode = e.returncode
-            if sys.version_info.major == 3:
-                err = _bytes_to_str(e.stderr)
-            elif sys.version_info.major == 2:
-                err = e.output
-            else:
-                raise Exception('Invalid version of Python')
-            invalid_packages[package] = (returncode, err.strip())
-            
-        if progress:
-            progress_bar.update()
-            
-    return invalid_packages
+    return (returncode, err)
 
 def _get_freeze_package_name(info):
     name, version = info.split('==')
@@ -430,17 +412,28 @@ def pip(pkg_name, verbose=False, progress=False):
 
     # calculate and subtract what's installed again after overrides installed
     packages = _subtract_installed(packages)
-
     packages = list(packages)
     args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
     args.extend(_per_package_args(packages, _config_options))
 
+    if progress:
+        import tqdm
+        if _in_ipython():
+            progress_bar = tqdm.tqdm_notebook(total=len(packages), desc='Installing packages')
+        else:
+            progress_bar = tqdm.tqdm(total=len(packages), desc='Installing packages')
+            
     if len(packages) > 0:
         _logger.debug('Running pip to install {0}'.format(', '.join(sorted(packages))))
         pip_exec = _get_pip_exec(_config_options)
-        package_errs = pip_exec(args + packages, progress=progress)
-        _invalidate_cache()
-        _refresh_available_packages()
+        package_errs = {}
+        for package in packages:
+            resp = pip_exec(args + [package], progress=progress)
+            package_errs[package] = resp
+            if progress:
+                progress_bar.update()
+            _invalidate_cache()
+            _refresh_available_packages()
 
     packages_after_install = _already_installed()
     _log_before_after(packages_before_install, packages_after_install, list(package_errs.keys()))
