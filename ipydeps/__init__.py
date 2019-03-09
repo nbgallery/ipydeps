@@ -97,8 +97,8 @@ _internal_params = ['--use-pypki2']
 _pip_run_args = [sys.executable, '-m', 'pip']
 
 def _get_pip_exec(config_options):
-    def _pip_exec(args1, args2, **kwargs):
-        return _run_get_stderr(_pip_run_args+args1+args2, **kwargs)
+    def _pip_exec(args1, args2):
+        return _run_get_stderr(_pip_run_args+args1+args2)
 
     if '--use-pypki2' in config_options:
         import pypki2pip
@@ -290,7 +290,7 @@ def _find_overrides(packages, dep_link):
 
     return overrides
 
-def _run_get_stderr(cmd, progress=False):
+def _run_get_stderr(cmd):
     returncode = 0
     err = None
     
@@ -371,17 +371,32 @@ def _log_stdlib_packages(stdlib_packages, packages):
         if package in stdlib_packages:
             _logger.warning('{0} is part of the Python standard library and will be skipped.  Remove it from the list to remove this warning.'.format(package))
 
-def _log_before_after(before, after, errors):
+def _log_before_after(before, after):
     new_packages = after - before
 
     if len(new_packages) == 0:
         _logger.warning('No new packages installed')
     elif len(new_packages) > 0:
         _logger.info('New packages installed: {0}'.format(', '.join(sorted(list(new_packages)))))
-    if errors:
-        _logger.error('Unable to install the following packages: {0}'.format(', '.join(sorted(list(errors)))))
 
-def pip(pkg_name, verbose=False, progress=False):
+
+def _log_package_errors(errors):
+    for package, error in errors.items():
+        _logger.error('Error while installing {0}...'.format(package))
+        _logger.error(error)
+
+    if len(errors) > 0:
+        _logger.error('Unable to install the following packages: {0}'.format(', '.join(sorted(list(errors.keys())))))
+
+def _create_progress_bar(total, desc):
+    if _in_ipython():
+        from tqdm import tqdm_notebook
+        return tqdm_notebook(total=total, desc=desc)
+    else:
+        from tqdm import tqdm
+        return tqdm(total=total, desc=desc)
+
+def pip(pkg_name, verbose=False, progress_bar=False):
     args = [
         'install',
     ]
@@ -416,34 +431,41 @@ def pip(pkg_name, verbose=False, progress=False):
     args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
     args.extend(_per_package_args(packages, _config_options))
 
-    if progress:
-        import tqdm
-        if _in_ipython():
-            progress_bar = tqdm.tqdm_notebook(total=len(packages), desc='Installing packages')
-        else:
-            progress_bar = tqdm.tqdm(total=len(packages), desc='Installing packages')
-            
     if len(packages) > 0:
         _logger.debug('Running pip to install {0}'.format(', '.join(sorted(packages))))
         pip_exec = _get_pip_exec(_config_options)
-        package_errs = {}
-        for package in packages:
-            _logger.debug('Installing {0}...'.format(package))
-            returncode, err = pip_exec(args + [package], progress=progress)
-            if err:
-                package_errs[package] = err
-            # only update the bar if a package is successfully installed?
-            if progress and not err:
-                progress_bar.update()
-            _invalidate_cache()
-            _refresh_available_packages()
+
+        if not progress_bar:
+            # no progress bar, so install in one fell swoop, original way
+            returncode, err = pip_exec(args + packages)
+
+            if returncode != 0 and err is not None:
+                _logger.error(err)
+
+        else:
+            # with progress bar, so install iteratively, experimental way
+            package_errs = {}
+            tqdm_progress_bar = _create_progress_bar(total=len(packages), desc='Installing packages')
+
+            for package in packages:
+                _logger.debug('Installing {0}...'.format(package))
+                returncode, err = pip_exec(args + [package])
+
+                if err:
+                    package_errs[package] = err
+
+                # only update the bar if a package is successfully installed?
+                if progress_bar and not err:
+                    tqdm_progress_bar.update()
+
+            _log_package_errors(package_errs)
+
+        # progress bar or not, do these
+        _invalidate_cache()
+        _refresh_available_packages()
 
     packages_after_install = _already_installed()
-    _log_before_after(packages_before_install, packages_after_install, list(package_errs.keys()))
-    
-    for package, err in package_errs.items():
-        _logger.error(err)
-                
+    _log_before_after(packages_before_install, packages_after_install)
     _logger.debug('Done')
 
 def _make_user_site_packages():
