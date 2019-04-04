@@ -75,6 +75,11 @@ asn1crypto==0.23.0'''
         self.assertTrue('asn1crypto' in pkgs)
 
 class OverrideTests(unittest.TestCase):
+    def test_empty_overrides(self):
+        names = set()
+        overrides = _find_overrides(names, '')
+        self.assertTrue(len(overrides) == 0)
+
     def test_no_overrides(self):
         names = set(['foo', 'bar', 'baz'])
         overrides = _find_overrides(names, '')

@@ -266,6 +266,9 @@ def _read_dependencies_json(dep_link):
     return _case_insensitive_dependencies_json(j)
 
 def _find_overrides(packages, dep_link):
+    if len(packages) == 0:
+        return {}
+
     dep_json = _read_dependencies_json(dep_link)
     py_name_micro = _py_name_micro()
     py_name_minor = _py_name_minor()
