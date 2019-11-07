@@ -10,7 +10,7 @@ with open(path.join(this_directory, 'README.md'), 'r') as f:
 
 setup(
     name='ipydeps',
-    version='0.8.2',
+    version='0.9.0',
     author='Bill Allen',
     author_email='photo.allen@gmail.com',
     description='A pip interface wrapper for installing packages from within Jupyter notebooks.',

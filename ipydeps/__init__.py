@@ -200,6 +200,21 @@ def _remove_per_package_options(options):
 def _remove_internal_options(options):
     return [ opt for opt in options if opt not in _internal_params ]
 
+def _apply_use_pypki2_param(use_pypki2, config_options):
+    ret = config_options[:]  # list.copy() does not exist in Python 2
+
+    if '--use-pypki2' in ret:
+        ret.remove('--use-pypki2')
+
+    if use_pypki2 is True:
+        return ret + ['--use-pypki2']
+
+    if use_pypki2 is False:
+        return ret
+
+    # if use_pypki2 is None, return unmodified
+    return config_options
+
 def _py_name_micro():
     major = sys.version_info.major
     minor = sys.version_info.minor
@@ -382,7 +397,7 @@ def _log_before_after(before, after):
     elif len(new_packages) > 0:
         _logger.info('New packages installed: {0}'.format(', '.join(sorted(list(new_packages)))))
 
-def pip(pkg_name, verbose=False):
+def pip(pkg_name, verbose=False, use_pypki2=None):
     args = [
         'install',
     ]
@@ -420,7 +435,7 @@ def pip(pkg_name, verbose=False):
 
     if len(packages) > 0:
         _logger.debug('Running pip to install {0}'.format(', '.join(sorted(packages))))
-        pip_exec = _get_pip_exec(_config_options)
+        pip_exec = _get_pip_exec(_apply_use_pypki2_param(use_pypki2, _config_options))
         returncode, err = pip_exec(args + packages)
 
         if returncode != 0 and err is not None:

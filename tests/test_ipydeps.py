@@ -13,6 +13,7 @@ _log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(mes
 _log_handler.setLevel(logging.DEBUG)
 _logger.addHandler(_log_handler)
 
+from ipydeps import _apply_use_pypki2_param
 from ipydeps import _config_location
 from ipydeps import _find_overrides
 from ipydeps import _get_freeze_package_name
@@ -146,6 +147,32 @@ class ConfigTests(unittest.TestCase):
         options = _read_config(self.path)
         self.assertTrue('--allow-unverified' in options)
         self.assertTrue('--allow-external' in options)
+
+    def test_apply_use_pypki2_param(self):
+        args = _apply_use_pypki2_param(True, ['--use-pypki2', '--foo', '--allow-external'])
+        self.assertTrue('--use-pypki2' in args)
+        self.assertTrue('--foo' in args)
+        self.assertTrue('--allow-external' in args)
+
+        args = _apply_use_pypki2_param(True, ['--foo', '--allow-external'])
+        self.assertTrue('--use-pypki2' in args)
+        self.assertTrue('--foo' in args)
+        self.assertTrue('--allow-external' in args)
+
+        args = _apply_use_pypki2_param(False, ['--use-pypki2', '--foo', '--allow-external'])
+        self.assertTrue('--use-pypki2' not in args)
+        self.assertTrue('--foo' in args)
+        self.assertTrue('--allow-external' in args)
+
+        args = _apply_use_pypki2_param(None, ['--use-pypki2', '--foo', '--allow-external'])
+        self.assertTrue('--use-pypki2' in args)
+        self.assertTrue('--foo' in args)
+        self.assertTrue('--allow-external' in args)
+
+        args = _apply_use_pypki2_param(None, ['--foo', '--allow-external'])
+        self.assertTrue('--use-pypki2' not in args)
+        self.assertTrue('--foo' in args)
+        self.assertTrue('--allow-external' in args)
 
     def test_per_package_args(self):
         args = _per_package_args(['foo', 'bar'], ['--allow-unverified', '--allow-external'])
