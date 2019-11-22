@@ -18,6 +18,29 @@ def _str_to_bytes(s):
     else:
         return s
 
+def _in_virtualenv():
+    # based on http://stackoverflow.com/questions/1871549/python-determine-if-running-inside-virtualenv
+    if hasattr(sys, 'real_prefix'):
+        return True
+    return False
+
+def _apply_user(config_options, test_mode=False):
+    # tests happen in a virtualenv, so test_mode allows
+    # this check to be bypassed so the rest of the
+    # function can be tested
+    if test_mode is False and _in_virtualenv():
+        return []
+
+    for config_option in config_options:
+        if config_option.startswith('--target=') or config_option.startswith('--target '):
+            return []
+
+        # don't need to specify --user again if it's already in the config
+        if config_option == '--user':
+            return []
+
+    return ['--user']
+
 def _bytes_to_str(b):
     if sys.version_info.major == 3:
         return str(b, encoding='utf8')

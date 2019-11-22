@@ -1,6 +1,6 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-from .utils import _bytes_to_str, _in_ipython, _stdlib_packages
+from .utils import _apply_user, _bytes_to_str, _in_ipython, _in_virtualenv, _stdlib_packages
 
 from functools import partial
 from time import sleep
@@ -24,12 +24,6 @@ else:
 
 def _find_user_home():
     return os.path.expanduser('~')
-
-def _in_virtualenv():
-    # based on http://stackoverflow.com/questions/1871549/python-determine-if-running-inside-virtualenv
-    if hasattr(sys, 'real_prefix'):
-        return True
-    return False
 
 def _write_config(path, options):
     with open(path, 'w') as f:
@@ -404,9 +398,6 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
 
     packages_before_install = _already_installed()
 
-    if not _in_virtualenv():
-        args.append('--user')
-
     if verbose:
         args.append('-vvv')
 
@@ -430,6 +421,7 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
     packages = _subtract_installed(packages)
 
     packages = list(packages)
+    args.extend(_apply_user(_config_options))
     args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
     args.extend(_per_package_args(packages, _config_options))
 
