@@ -24,6 +24,16 @@ def _in_virtualenv():
         return True
     return False
 
+def _config_contains_target(config_options):
+    for config_option in config_options:
+        if config_option.startswith('--target=') or config_option.startswith('--target '):
+            return True
+
+def _config_contains_user(config_options):
+    for config_option in config_options:
+        if config_option == '--user':
+            return True
+
 def _apply_user(config_options, test_mode=False):
     # tests happen in a virtualenv, so test_mode allows
     # this check to be bypassed so the rest of the
@@ -31,13 +41,12 @@ def _apply_user(config_options, test_mode=False):
     if test_mode is False and _in_virtualenv():
         return []
 
-    for config_option in config_options:
-        if config_option.startswith('--target=') or config_option.startswith('--target '):
-            return []
+    if _config_contains_target(config_options):
+        return []
 
+    if _config_contains_user(config_options):
         # don't need to specify --user again if it's already in the config
-        if config_option == '--user':
-            return []
+        return []
 
     return ['--user']
 

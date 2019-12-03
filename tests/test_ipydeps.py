@@ -1,6 +1,5 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-from collections import Counter
 from tempfile import NamedTemporaryFile
 
 import json

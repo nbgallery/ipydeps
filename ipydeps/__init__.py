@@ -1,6 +1,6 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-from .utils import _apply_user, _bytes_to_str, _in_ipython, _in_virtualenv, _stdlib_packages
+from .utils import _apply_user, _bytes_to_str, _config_contains_target, _in_ipython, _in_virtualenv, _stdlib_packages
 
 from functools import partial
 from time import sleep
@@ -436,8 +436,14 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
         _invalidate_cache()
         _refresh_available_packages()
 
-    packages_after_install = _already_installed()
-    _log_before_after(packages_before_install, packages_after_install)
+
+    if not _config_contains_target(_config_options):
+        # We can't find out what packages are installed using `pip freeze`
+        # when --target is used, which causes this to report that nothing
+        # new has been installed.  Don't want to mislead the user.
+        packages_after_install = _already_installed()
+        _log_before_after(packages_before_install, packages_after_install)
+
     _logger.debug('Done')
 
 def _make_user_site_packages():
