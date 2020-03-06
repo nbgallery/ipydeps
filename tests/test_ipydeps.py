@@ -17,6 +17,7 @@ from ipydeps import _apply_use_pypki2_param
 from ipydeps import _config_location
 from ipydeps import _find_overrides
 from ipydeps import _get_freeze_package_name
+from ipydeps import _normalize_package_names
 from ipydeps import _per_package_args
 from ipydeps import _pkg_names
 from ipydeps import _pkg_name_list
@@ -74,6 +75,13 @@ asn1crypto==0.23.0'''
         self.assertEqual(len(pkgs), 2)
         self.assertTrue('arrow' in pkgs)
         self.assertTrue('asn1crypto' in pkgs)
+
+    def test_normalize_package_naes(self):
+        packages = _pkg_name_list(['foo==10.1', 'bar', 'baz<5.5.5', 'foo-bar', 'foo_baz'])
+        packages = _normalize_package_names(packages)
+        self.assertEqual(len(packages), 5)
+        self.assertTrue('foo-bar' in packages)
+        self.assertTrue('foo-baz' in packages)
 
 class OverrideTests(unittest.TestCase):
     def test_empty_overrides(self):

@@ -29,6 +29,13 @@ def _bytes_to_str(b):
 def _html_escape(s):
     return escape(s, quote=True)
 
+def _normalize_package_names(packages):
+    # normalize underscores to dashes to line
+    # up with pip freeze output
+    packages = { p.replace('_', '-') for p in packages }
+    packages = { p.lower() for p in packages }
+    return packages
+
 def _in_ipython():
     try:
         from IPython import get_ipython

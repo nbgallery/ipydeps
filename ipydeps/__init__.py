@@ -1,6 +1,6 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-from .utils import _bytes_to_str, _in_ipython, _stdlib_packages
+from .utils import _bytes_to_str, _in_ipython, _normalize_package_names, _stdlib_packages
 
 from functools import partial
 from time import sleep
@@ -411,6 +411,7 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
         args.append('-vvv')
 
     packages = set(_pkg_name_list(pkg_name))
+    packages = _normalize_package_names(packages)
 
     # ignore items from the standard library
     stdlib_packages = _stdlib_packages()
