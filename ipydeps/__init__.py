@@ -172,7 +172,7 @@ def _pkg_names(s):
     don't get through.  This also allows version
     specifiers.
     '''
-    pat = re.compile(r'([A-Za-z][A-Za-z0-9_\-]+((<|>|<=|>=|==)[0-9]+\.[0-9]+(\.[0-9]+)?)?)')
+    pat = re.compile(r'([A-Za-z][A-Za-z0-9_\-]+((<|>|<=|>=|==)[0-9]+\.[0-9]+(\.[0-9]+)*)?)')
     return [ x[0] for x in pat.findall(s) ]
 
 def _pkg_name_list(x):

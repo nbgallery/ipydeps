@@ -56,6 +56,16 @@ class PkgNameTests(unittest.TestCase):
         self.assertEqual(len(packages), 1)
         self.assertEqual(packages[0], 'foo>=0.10')
 
+    def test_version_specifier_sub_micro(self):
+        packages = _pkg_names('foo>=0.10.11.12')
+        self.assertEqual(len(packages), 1)
+        self.assertEqual(packages[0], 'foo>=0.10.11.12')
+
+    def test_version_specifier_super_sub_micro(self):
+        packages = _pkg_names('foo>=0.10.11.12.13.14.15.16.17.18.19.42')
+        self.assertEqual(len(packages), 1)
+        self.assertEqual(packages[0], 'foo>=0.10.11.12.13.14.15.16.17.18.19.42')
+
     def test_version_specifier_list(self):
         packages = _pkg_name_list(['foo==10.1', 'bar', 'baz<5.5.5'])
         self.assertEqual(len(packages), 3)
