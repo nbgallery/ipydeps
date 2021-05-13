@@ -14,10 +14,10 @@ _log_handler.setLevel(logging.DEBUG)
 _logger.addHandler(_log_handler)
 
 from ipydeps import _apply_use_pypki2_param
+from ipydeps import _apply_user
 from ipydeps import _config_location
 from ipydeps import _find_overrides
 from ipydeps import _get_freeze_package_name
-from ipydeps import _normalize_package_names
 from ipydeps import _per_package_args
 from ipydeps import _pkg_names
 from ipydeps import _pkg_name_list
@@ -29,6 +29,7 @@ from ipydeps import _read_config
 from ipydeps import _remove_internal_options
 from ipydeps import _subtract_installed
 from ipydeps import _write_config
+from ipydeps.utils import _normalize_package_names
 
 class PkgNameTests(unittest.TestCase):
     def test_pkg_names(self):
@@ -203,3 +204,16 @@ class ConfigTests(unittest.TestCase):
         args = _remove_internal_options(['--allow-unverified', '--use-pypki2'])
         self.assertTrue('--allow-unverified' in args)
         self.assertTrue('--use-pypki2' not in args)
+
+    def test_apply_user(self):
+        args = _apply_user(['--target=/home/foo/packages', '--foo'], test_mode=True)
+        self.assertTrue('--user' not in args)
+
+        args = _apply_user(['--target /home/foo/packages', '--foo'], test_mode=True)
+        self.assertTrue('--user' not in args)
+
+        args = _apply_user(['--use_pypki2', '--foo', '--bar'], test_mode=True)
+        self.assertTrue('--user' in args)
+
+        args = _apply_user(['--user', '--foo', '--bar'], test_mode=True)
+        self.assertTrue('--user' not in args)

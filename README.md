@@ -38,11 +38,11 @@ from sklearn.cluster import KMeans
 ## Configuration Files
 
 ### ipydeps.conf
-pip options for your particular environment can be placed in ~/.config/ipydeps/ipydeps.conf.  For example, the following ipydeps.conf could be used to specify that you want ipydeps to trust a host, timeout after 30 seconds, and install all packages into user space:
+pip options for your particular environment can be placed in ~/.config/ipydeps/ipydeps.conf.  For example, the following ipydeps.conf could be used to specify that you want ipydeps to trust a host, timeout after 30 seconds, and install all packages into /opt/packages.
 
 ```text
 --trusted-host=my.pip.server.com
---user
+--target=/opt/packages
 --timeout=30
 ```
 
@@ -116,4 +116,16 @@ In some environments, having a PKI-enabled pip server is advantageous.  To that 
 
 ```text
 --use-pypki2
+```
+
+You can also do this on a per-call basis with:
+
+```python
+ipydeps.pip(['numpy', 'beautifulsoup4'], use_pypki2=True)
+```
+
+If you have `--use-pypki2` in your ipydeps.conf, you can override it with:
+
+```python
+ipydeps.pip(['numpy', 'beautifulsoup4'], use_pypki2=False)
 ```

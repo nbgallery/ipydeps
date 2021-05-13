@@ -1,7 +1,5 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-from .utils import _bytes_to_str, _in_ipython, _normalize_package_names, _stdlib_packages
-
 from functools import partial
 from time import sleep
 
@@ -14,6 +12,8 @@ import site
 import subprocess
 import sys
 
+from .utils import _apply_user, _bytes_to_str, _config_contains_target, _in_ipython, _in_virtualenv, _normalize_package_names, _stdlib_packages
+
 if _in_ipython():
     from .logger import _IPythonLogger
     _logger = _IPythonLogger()
@@ -24,12 +24,6 @@ else:
 
 def _find_user_home():
     return os.path.expanduser('~')
-
-def _in_virtualenv():
-    # based on http://stackoverflow.com/questions/1871549/python-determine-if-running-inside-virtualenv
-    if hasattr(sys, 'real_prefix'):
-        return True
-    return False
 
 def _write_config(path, options):
     with open(path, 'w') as f:
@@ -404,9 +398,6 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
 
     packages_before_install = _already_installed()
 
-    if not _in_virtualenv():
-        args.append('--user')
-
     if verbose:
         args.append('-vvv')
 
@@ -431,6 +422,7 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
     packages = _subtract_installed(packages)
 
     packages = list(packages)
+    args.extend(_apply_user(_config_options))
     args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
     args.extend(_per_package_args(packages, _config_options))
 
@@ -445,8 +437,17 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
         _invalidate_cache()
         _refresh_available_packages()
 
+
+    if _config_contains_target(_config_options):
+        # We can't find out what packages are installed using `pip freeze`
+        # when --target is used, which causes this to report that nothing
+        # new has been installed.  Don't want to mislead the user.
+        _logger.warning('pip has trouble determining which packages have been installed when '
+                        '--target is used. Packages may have installed correctly.')
+
     packages_after_install = _already_installed()
     _log_before_after(packages_before_install, packages_after_install)
+
     _logger.debug('Done')
 
 def _make_user_site_packages():
