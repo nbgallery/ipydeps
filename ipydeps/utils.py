@@ -22,6 +22,9 @@ def _in_virtualenv():
     # based on http://stackoverflow.com/questions/1871549/python-determine-if-running-inside-virtualenv
     if hasattr(sys, 'real_prefix'):
         return True
+    elif hasattr(sys, 'prefix') and hasattr(sys, 'base_prefix') and sys.prefix != sys.base_prefix:
+        return True
+
     return False
 
 def _config_contains_target(config_options):

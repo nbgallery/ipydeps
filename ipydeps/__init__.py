@@ -409,17 +409,22 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
     _log_stdlib_packages(stdlib_packages, packages)
     packages = _subtract_stdlib(stdlib_packages, packages)
 
-    # ignore items that have already been installed
-    _log_already_installed(packages_before_install, packages)
-    packages = _subtract_installed(packages)
+    if _config_contains_target(_config_options):
+        logger.warning('pip has trouble determining which package have been installed when '
+                       '--target is used. This means ipydeps does not know whether or not '
+                       'to use any overrides, therefore no overrides will be used.')
+    else:
+        # ignore items that have already been installed
+        _log_already_installed(packages_before_install, packages)
+        packages = _subtract_installed(packages)
 
-    overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
-    _run_overrides(overrides)
+        overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
+        _run_overrides(overrides)
 
-    _refresh_available_packages()
+        _refresh_available_packages()
 
-    # calculate and subtract what's installed again after overrides installed
-    packages = _subtract_installed(packages)
+        # calculate and subtract what's installed again after overrides installed
+        packages = _subtract_installed(packages)
 
     packages = list(packages)
     args.extend(_apply_user(_config_options))
@@ -437,16 +442,12 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
         _invalidate_cache()
         _refresh_available_packages()
 
-
     if _config_contains_target(_config_options):
-        # We can't find out what packages are installed using `pip freeze`
-        # when --target is used, which causes this to report that nothing
-        # new has been installed.  Don't want to mislead the user.
         _logger.warning('pip has trouble determining which packages have been installed when '
                         '--target is used. Packages may have installed correctly.')
-
-    packages_after_install = _already_installed()
-    _log_before_after(packages_before_install, packages_after_install)
+    else:
+        packages_after_install = _already_installed()
+        _log_before_after(packages_before_install, packages_after_install)
 
     _logger.debug('Done')
 
