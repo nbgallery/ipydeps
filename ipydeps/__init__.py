@@ -12,7 +12,12 @@ import site
 import subprocess
 import sys
 
-from .utils import _apply_user, _bytes_to_str, _config_contains_target, _in_ipython, _in_virtualenv, _normalize_package_names, _stdlib_packages
+from .utils import _bytes_to_str
+from .utils import _in_ipython
+from .utils import _in_virtualenv
+from .utils import _normalize_package_names
+from .utils import _target_path
+from .utils import _stdlib_packages
 
 if _in_ipython():
     from .logger import _IPythonLogger
@@ -104,16 +109,6 @@ def _get_pip_exec(config_options):
         return _pip_pki_exec
 
     return partial(_pip_exec, [])
-
-def _user_site_packages():
-    if not _in_virtualenv():
-        return site.getusersitepackages()
-    else:
-        home = _find_user_home()
-        major = sys.version_info.major
-        minor = sys.version_info.minor
-        path = '/.local/lib/python{major}.{minor}/site-packages'.format(major=major, minor=minor)
-        return home+path
 
 def _write_dependencies_link(path, url):
     url = url.strip()
@@ -330,18 +325,23 @@ def _process_pip_freeze_output(pkgs):
     pkgs = [ _get_freeze_package_name(p) for p in pkgs ]
     return pkgs
 
-def _pip_freeze_packages():
-    pkgs = subprocess.check_output(_pip_run_args + ['freeze','--all'])
+def _pip_freeze_packages(path):
+    path_options = []
+
+    if path is not None:
+        path_options = ['--path', path]
+
+    pkgs = subprocess.check_output(_pip_run_args + ['freeze','--all'] + path_options)
     return _process_pip_freeze_output(pkgs)
 
-def _already_installed():
+def _already_installed(path):
     pr = set([ pkg.project_name for pkg in pkg_resources.working_set ])
-    pf = set(_pip_freeze_packages())
+    pf = set(_pip_freeze_packages(path))
     return { p.lower() for p in pr.union(pf) }
 
-def _subtract_installed(packages):
+def _subtract_installed(packages, path):
     packages = set(( p.lower() for p in packages))  # removes duplicates
-    return packages - _already_installed()
+    return packages - _already_installed(path)
 
 def _subtract_stdlib(stdlib_packages, packages):
     return packages - stdlib_packages
@@ -396,7 +396,8 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
         'install',
     ]
 
-    packages_before_install = _already_installed()
+    target_path = _target_path(_config_options)
+    packages_before_install = _already_installed(target_path)
 
     if verbose:
         args.append('-vvv')
@@ -409,25 +410,19 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
     _log_stdlib_packages(stdlib_packages, packages)
     packages = _subtract_stdlib(stdlib_packages, packages)
 
-    if _config_contains_target(_config_options):
-        logger.warning('pip has trouble determining which package have been installed when '
-                       '--target is used. This means ipydeps does not know whether or not '
-                       'to use any overrides, therefore no overrides will be used.')
-    else:
-        # ignore items that have already been installed
-        _log_already_installed(packages_before_install, packages)
-        packages = _subtract_installed(packages)
+    # ignore items that have already been installed
+    _log_already_installed(packages_before_install, packages)
+    packages = _subtract_installed(packages, target_path)
 
-        overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
-        _run_overrides(overrides)
+    overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
+    _run_overrides(overrides)
 
-        _refresh_available_packages()
+    _refresh_available_packages()
 
-        # calculate and subtract what's installed again after overrides installed
-        packages = _subtract_installed(packages)
+    # calculate and subtract what's installed again after overrides installed
+    packages = _subtract_installed(packages, target_path)
 
     packages = list(packages)
-    args.extend(_apply_user(_config_options))
     args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
     args.extend(_per_package_args(packages, _config_options))
 
@@ -442,26 +437,7 @@ def pip(pkg_name, verbose=False, use_pypki2=None):
         _invalidate_cache()
         _refresh_available_packages()
 
-    if _config_contains_target(_config_options):
-        _logger.warning('pip has trouble determining which packages have been installed when '
-                        '--target is used. Packages may have installed correctly.')
-    else:
-        packages_after_install = _already_installed()
-        _log_before_after(packages_before_install, packages_after_install)
+    packages_after_install = _already_installed(target_path)
+    _log_before_after(packages_before_install, packages_after_install)
 
     _logger.debug('Done')
-
-def _make_user_site_packages():
-    if not _in_virtualenv():
-        if not os.path.exists(_user_site_packages()):
-            try:
-                os.makedirs(_user_site_packages(), 0o755)
-            except FileExistsError:
-                pass  # ignore.  Something snuck in and created it for us
-            except Exception as e:
-                _logger.error('Cannot create user site-packages directory: {0}'.format(str(e)))
-
-        if _user_site_packages() not in sys.path:
-            sys.path.append(_user_site_packages())
-
-_make_user_site_packages()
