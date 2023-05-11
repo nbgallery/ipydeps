@@ -13,22 +13,22 @@ _log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(mes
 _log_handler.setLevel(logging.DEBUG)
 _logger.addHandler(_log_handler)
 
-from ipydeps import _apply_use_pypki2_param
-from ipydeps import _config_location
-from ipydeps import _find_overrides
-from ipydeps import _get_freeze_package_name
-from ipydeps import _normalize_package_names
-from ipydeps import _per_package_args
-from ipydeps import _pkg_names
-from ipydeps import _pkg_name_list
-from ipydeps import _process_pip_freeze_output
-from ipydeps import _py_name_major
-from ipydeps import _py_name_minor
-from ipydeps import _py_name_micro
-from ipydeps import _read_config
-from ipydeps import _remove_internal_options
-from ipydeps import _subtract_installed
-from ipydeps import _write_config
+from ipydeps.ipydeps import _apply_use_pypki2_param
+from ipydeps.ipydeps import _config_location
+from ipydeps.ipydeps import _find_overrides
+from ipydeps.ipydeps import _get_freeze_package_name
+from ipydeps.ipydeps import _normalize_package_names
+from ipydeps.ipydeps import _per_package_args
+from ipydeps.ipydeps import _pkg_names
+from ipydeps.ipydeps import _pkg_name_list
+from ipydeps.ipydeps import _process_pip_freeze_output
+from ipydeps.ipydeps import _py_name_major
+from ipydeps.ipydeps import _py_name_minor
+from ipydeps.ipydeps import _py_name_micro
+from ipydeps.ipydeps import _read_config
+from ipydeps.ipydeps import _remove_internal_options
+from ipydeps.ipydeps import _subtract_installed
+from ipydeps.ipydeps import _write_config
 
 class PkgNameTests(unittest.TestCase):
     def test_pkg_names(self):

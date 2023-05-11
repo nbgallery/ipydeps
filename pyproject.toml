@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "ipydeps"
+version = "0.0.1"
+description = "A pip interface wrapper for installing packages from within Jupyter notebooks."
+authors = ["Bill Allen <billallen256@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "http://github.com/nbgallery/ipydeps"
+include = ["data/libs2.txt", "data/libs3.txt"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+pypki2 = ">=0.10.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py{310}
+isolated_build = true
+
+[gh-actions]
+python =
+	3.6: py36
+	3.10: py310
+
+[testenv]
+recreate = true
+changedir = tests
+deps =
+	pylint
+commands =
+	#python -m pylint --disable=C,R -s no ipydeps
+	discover
+	python -m ipydeps six,geohash
+	python -m ipydeps urllib exifread
+	python -m ipydeps requests_toolbelt requests-toolbelt
+"""
