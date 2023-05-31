@@ -10,11 +10,18 @@ include = ["data/libs2.txt", "data/libs3.txt"]
 
 [tool.poetry.dependencies]
 python = "^3.6"
-pypki2 = ">=0.10.1"
+pypki3 = ">=2023.111.38"
+ipylogging = ">=2020.342.1"
+pip = ">=20.0"
+temppath = ">=2021.236.907"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 150
+disable = "too-many-nested-blocks,too-many-branches,too-many-statements,R0801,R0902,R0903,R0911,R0913,R0914,C0103,C0114,C0115,C0116,C0123,C0301,C0302,fixme"
 
 [tool.tox]
 legacy_tox_ini = """
@@ -31,11 +38,12 @@ python =
 recreate = true
 changedir = tests
 deps =
+  flake8
 	pylint
+	pytest
+	pytest-cov
 commands =
-	#python -m pylint --disable=C,R -s no ipydeps
-	discover
-	python -m ipydeps six,geohash
-	python -m ipydeps urllib exifread
-	python -m ipydeps requests_toolbelt requests-toolbelt
+  flake8 --select E201,E202,E231,E262,E265 ipydeps
+	pylint ipydeps
+	pytest --cov-report term-missing --cov=ipydeps
 """

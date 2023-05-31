@@ -1,153 +1,64 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
-from .utils import _bytes_to_str, _in_ipython, _normalize_package_names, _stdlib_packages
-
-from functools import partial
+from importlib import invalidate_caches as importlib_invalidate_caches
+from os import environ
 from time import sleep
+from typing import Callable, Dict, Sequence, Set, Union
+from urllib.error import HTTPError
+from urllib.request import urlopen
 
 import json
-import logging
-import os
 import pkg_resources
 import re
-import site
 import subprocess
 import sys
 
-if _in_ipython():
-    from .logger import _IPythonLogger
-    _logger = _IPythonLogger()
-else:
-    _logger = logging.getLogger('ipydeps')
-    _logger.addHandler(logging.StreamHandler())
-    _logger.setLevel(logging.DEBUG)
+from pypki3 import loader as pki_loader
+from pypki3 import NamedTemporaryKeyCertPaths, ssl_context
+from temppath import TemporaryPathContext
 
-def _find_user_home():
-    return os.path.expanduser('~')
+from .config import config_dir, load_config
+from .logger import logger
+from .utils import (
+    combine_key_and_cert,
+    normalize_package_names,
+    stdlib_packages,
+)
 
-def _in_virtualenv():
-    # based on https://stackoverflow.com/questions/1871549/determine-if-python-is-running-inside-virtualenv
-    return not sys.prefix == sys.base_prefix
+package_name_pattern = re.compile(r'([A-Za-z][A-Za-z0-9_\-]+((<|>|<=|>=|==)[0-9]+\.[0-9]+(\.[0-9]+)*)?)')
+pip_run_args = [sys.executable, '-m', 'pip']
 
-def _write_config(path, options):
-    with open(path, 'w') as f:
-        for option in options:
-            f.write(option + '\n')
+def run_pip(
+    packages: Sequence,
+    use_pki: bool,
+    verbose: bool,
+    pip_config_path: Optional[Path],
+):
+    args = ['install']
 
-def _config_dir():
-    home = _find_user_home()
-    config_dir = home + '/.config/ipydeps'
+    if verbose:
+        args.append('-vvv')
 
-    if not os.path.exists(config_dir):
-        try:
-            os.makedirs(config_dir, 0o755)
-        except FileExistsError:
-            pass
-        except Exception as e:
-            _logger.error('Cannot create config directory: {0}'.format(str(e)))
+    env = dict(environ)
 
-    if os.path.exists(config_dir):
-        return config_dir
-    else:
-        raise Exception('Unable to determine config directory')
+    if pip_config_path:
+        env['PIP_CONFIG_FILE'] = str(pip_config_path)
 
-def _config_location():
-    config_dir = _config_dir()
-    config_path = config_dir + os.sep + 'ipydeps.conf'
+    if use_pki:
+        with NamedTemporaryKeyCertPaths() as key_cert_paths:
+            key_path = key_cert_paths[0]
+            cert_path = key_cert_paths[1]
+            ca_path = pki_loader.ca_path()
 
-    if os.path.exists(config_dir):
-        if not os.path.exists(config_path):
-            _write_config(config_path, [])
+            with TemporaryPathContext() as combined_key_cert_path:
+                combine_key_and_cert(combined_key_cert_path, key_path, cert_path)
+                args.append(f'--client-cert={combined_key_cert_path}')
+                args.append(f'--cert={ca_path}')
+                return run_get_stderr(pip_run_args+args+packages, env=env)
 
-        return config_path
-    else:
-        raise Exception('Unable to determine path to ipydeps.conf')
+    return run_get_stderr(pip_run_args+args+packages, env=env)
 
-def _read_config(path):
-    options = []
-
-    with open(path, 'r') as f:
-        for line in f:
-            line = line.strip()
-
-            if line.startswith('--'):
-                options.append(line)
-
-    return options
-
-_config_options = _read_config(_config_location())
-
-if sys.version_info.major == 3:
-    from urllib.request import urlopen
-    from urllib.error import HTTPError
-    from importlib import invalidate_caches as importlib_invalidate_caches
-elif sys.version_info.major == 2:
-    from urllib2 import urlopen, HTTPError
-
-    def importlib_invalidate_caches():
-        pass
-else:
-    _logger.error('Unknown version of Python: {v}'.format(v=sys.version_info.major))
-
-
-_per_package_params = ['--allow-unverified', '--allow-external']
-_internal_params = ['--use-pypki2']
-_pip_run_args = [sys.executable, '-m', 'pip']
-
-def _get_pip_exec(config_options):
-    def _pip_exec(args1, args2):
-        return _run_get_stderr(_pip_run_args+args1+args2)
-
-    if '--use-pypki2' in config_options:
-        import pypki2pip
-
-        def _pip_pki_exec(args):
-            f = partial(_pip_exec, args)
-            return pypki2pip.pip_pki_exec(f)
-
-        return _pip_pki_exec
-
-    return partial(_pip_exec, [])
-
-def _user_site_packages():
-    if not _in_virtualenv():
-        return site.getusersitepackages()
-    else:
-        home = _find_user_home()
-        major = sys.version_info.major
-        minor = sys.version_info.minor
-        path = '/.local/lib/python{major}.{minor}/site-packages'.format(major=major, minor=minor)
-        return home+path
-
-def _write_dependencies_link(path, url):
-    url = url.strip()
-
-    with open(path, 'w') as f:
-        if len(url) > 0:
-            f.write(url)
-
-def _dependencies_link_location():
-    config_dir = _config_dir()
-    dep_path = config_dir + os.sep + 'dependencies.link'
-
-    if os.path.exists(config_dir):
-        if not os.path.exists(dep_path):
-            _write_dependencies_link(dep_path, '')
-
-        return dep_path
-    else:
-        raise Exception('Unable to determine path to dependencies.link')
-
-def _read_dependencies_link(path):
-    link = ''
-
-    with open(path, 'r') as f:
-        link = f.read().split('\n')
-        link = link[0].strip()
-
-    return link
-
-def _invalidate_cache():
+def invalidate_cache():
     '''
     Invalidates the import cache so the next attempt to import a package
     will look for new import locations.
@@ -155,7 +66,7 @@ def _invalidate_cache():
     importlib_invalidate_caches()
     sleep(2)
 
-def _refresh_available_packages():
+def refresh_available_packages():
     '''
     Forces a rescan of available packages in pip's vendored pkg_resources
     and the main pkg_resources package, also used by pbr.
@@ -163,72 +74,32 @@ def _refresh_available_packages():
     for entry in sys.path:
         pkg_resources.working_set.add_entry(entry)
 
-def _pkg_names(s):
+def valid_pkg_names(s: str):
     '''
     Finds potential package names using a regex
     so weird strings that might contain code
     don't get through.  This also allows version
     specifiers.
     '''
-    pat = re.compile(r'([A-Za-z][A-Za-z0-9_\-]+((<|>|<=|>=|==)[0-9]+\.[0-9]+(\.[0-9]+)*)?)')
-    return [ x[0] for x in pat.findall(s) ]
+    return [x[0] for x in package_name_pattern.findall(s)]
 
-def _pkg_name_list(x):
-    if type(x) is list:
+def get_pkg_names(x: Union[str, Sequence]) -> Set:
+    if isinstance(x, (list, tuple)):
         x = ' '.join(x)
 
-    packages = _pkg_names(x)
-    packages = [ p.strip() for p in packages ]
-    packages = list(set([ p for p in packages if len(p) > 0 ]))
-    return packages
+    packages = (p.strip() for p in valid_pkg_names(x))
+    return set(p for p in packages if len(p) > 0)
 
-def _per_package_args(packages, options):
-    new_options = []
-    opts = _per_package_params
+def py_name_micro():
+    return f'python-{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}'
 
-    for opt in opts:
-        if opt in options:
-            new_options.extend([ opt+'='+p for p in packages])
+def py_name_minor():
+    return f'python-{sys.version_info.major}.{sys.version_info.minor}'
 
-    return new_options
+def py_name_major():
+    return f'python-{sys.version_info.major}'
 
-def _remove_per_package_options(options):
-    return [ opt for opt in options if opt not in _per_package_params ]
-
-def _remove_internal_options(options):
-    return [ opt for opt in options if opt not in _internal_params ]
-
-def _apply_use_pypki2_param(use_pypki2, config_options):
-    ret = config_options[:]  # list.copy() does not exist in Python 2
-
-    if '--use-pypki2' in ret:
-        ret.remove('--use-pypki2')
-
-    if use_pypki2 is True:
-        return ret + ['--use-pypki2']
-
-    if use_pypki2 is False:
-        return ret
-
-    # if use_pypki2 is None, return unmodified
-    return config_options
-
-def _py_name_micro():
-    major = sys.version_info.major
-    minor = sys.version_info.minor
-    micro = sys.version_info.micro
-    return 'python-{major}.{minor}.{micro}'.format(major=major, minor=minor, micro=micro)
-
-def _py_name_minor():
-    major = sys.version_info.major
-    minor = sys.version_info.minor
-    return 'python-{major}.{minor}'.format(major=major, minor=minor)
-
-def _py_name_major():
-    major = sys.version_info.major
-    return 'python-{major}'.format(major=major)
-
-def _case_insensitive_dependencies_json(dep_json):
+def case_insensitive_dependencies_json(dep_json):
     lowercased = {}
 
     for version in dep_json:
@@ -240,222 +111,202 @@ def _case_insensitive_dependencies_json(dep_json):
             cmds = packages[pkg]
 
             if pkg in lowercased[version]:
-                _logger.warning('Duplicate package name {0} in dependencies JSON.  Package names are case-insensitive.  Overwriting!'.format(pkg))
+                logger.warning('Duplicate package name %s in dependencies JSON.  Package names are case-insensitive.  Overwriting!', pkg)
 
             lowercased[version][pkg] = cmds
 
     return lowercased
 
-def _get_urlopener(config_options):
-    if '--use-pypki2' in config_options:
-        import pypki2config
-        ctx = pypki2config.ssl_context()
+def get_dependencies_link_urlopener(config: Config) -> Callable:
+    if config.dependencies_link_requires_pki:
+        ctx = ssl_context()
         return lambda url: urlopen(url, context=ctx)
 
     return urlopen
 
-def _read_dependencies_json(dep_link):
-    dep_link = dep_link.strip()
-
-    if len(dep_link) == 0:
-        return {}
-
-    urlopener = _get_urlopener(_config_options)
+def read_dependencies_json(config):
+    urlopener = get_dependencies_link_urlopener(config)
 
     try:
-        resp = urlopener(dep_link)
+        resp = urlopener(config.dependencies_link)
     except HTTPError as e:
-        _logger.error(_bytes_to_str(e.read()))
+        logger.error(str(e.read(), encoding='utf8'))
         return {}
 
-    d = _bytes_to_str(resp.read())
+    d = str(resp.read(), encoding='utf8')
 
     try:
         j = json.loads(d)
-    except Exception as e:
-        _logger.error(str(e))
-        j = {}
+    except json.decoder.JSONDecodeError as e:
+        logger.error(str(e))
+        return {}
 
-    return _case_insensitive_dependencies_json(j)
+    return case_insensitive_dependencies_json(j)
 
-def _find_overrides(packages, dep_link):
+def find_overrides(packages: Set, config: Config) -> Dict[str, Sequence[str]]:
     if len(packages) == 0:
         return {}
 
-    dep_json = _read_dependencies_json(dep_link)
-    py_name_micro = _py_name_micro()
-    py_name_minor = _py_name_minor()
-    py_name_major = _py_name_major()
+    dep_json = read_dependencies_json(config)
+    major = py_name_major()
+    minor = py_name_minor()
+    micro = py_name_micro()
 
     overrides = {}
 
-    if py_name_major in dep_json:
+    # Check major, then minor, then micro so the most
+    # specific override is used for a particular package.
+    if major in dep_json:
         for pkg in packages:
-            if pkg in dep_json[py_name_major]:
-                overrides[pkg] = dep_json[py_name_major][pkg]
+            if pkg in dep_json[major]:
+                overrides[pkg] = dep_json[major][pkg]
 
-    if py_name_minor in dep_json:
+    if minor in dep_json:
         for pkg in packages:
-            if pkg in dep_json[py_name_minor]:
-                overrides[pkg] = dep_json[py_name_minor][pkg]
+            if pkg in dep_json[minor]:
+                overrides[pkg] = dep_json[minor][pkg]
 
-    if py_name_micro in dep_json:
+    if micro in dep_json:
         for pkg in packages:
-            if pkg in dep_json[py_name_micro]:
-                overrides[pkg] = dep_json[py_name_micro][pkg]
+            if pkg in dep_json[micro]:
+                overrides[pkg] = dep_json[micro][pkg]
 
     return overrides
 
-def _run_get_stderr(cmd):
+def run_get_stderr(cmd, env=environ) -> Tuple[int, Optional[str]]:
     returncode = 0
     err = None
 
     try:
-        subprocess.check_output(cmd, stderr=subprocess.PIPE)
+        subprocess.check_output(cmd, stderr=subprocess.PIPE, env=env)
     except subprocess.CalledProcessError as e:
         returncode = e.returncode
-
-        if sys.version_info.major == 3:
-            err = _bytes_to_str(e.stderr)
-        elif sys.version_info.major == 2:
-            err = e.output
-        else:
-            raise Exception('Invalid version of Python')
+        err = str(e.stderr, encoding='utf8')
 
     return returncode, err
 
-def _get_freeze_package_name(info):
-    name, version = info.split('==')
+def get_freeze_package_name(info):
+    name, _ = info.split('==')
     return name.strip()
 
-def _process_pip_freeze_output(pkgs):
-    pkgs = _bytes_to_str(pkgs).split('\n')
-    pkgs = [ p for p in pkgs if len(p) > 0 and '==' in p ]
-    pkgs = [ _get_freeze_package_name(p) for p in pkgs ]
+def process_pip_freeze_output(pkgs) -> list:
+    pkgs = str(pkgs, encoding='utf8').split('\n')
+    pkgs = [p for p in pkgs if len(p) > 0 and '==' in p]
+    pkgs = [get_freeze_package_name(p) for p in pkgs]
     return pkgs
 
-def _pip_freeze_packages():
-    pkgs = subprocess.check_output(_pip_run_args + ['freeze','--all'])
-    return _process_pip_freeze_output(pkgs)
+def pip_freeze_packages():
+    pkgs = subprocess.check_output(pip_run_args + ['freeze','--all'])
+    return process_pip_freeze_output(pkgs)
 
-def _already_installed():
-    pr = set([ pkg.project_name for pkg in pkg_resources.working_set ])
-    pf = set(_pip_freeze_packages())
-    return { p.lower() for p in pr.union(pf) }
+def currently_installed() -> Set:
+    pr = set([pkg.project_name for pkg in pkg_resources.working_set])
+    pf = set(pip_freeze_packages())
+    return {p.lower() for p in pr|pf}
 
-def _subtract_installed(packages):
-    packages = set(( p.lower() for p in packages))  # removes duplicates
-    return packages - _already_installed()
+def subtract_installed(already_installed: Set, requested: Set) -> Set:
+    requested_packages = set((p.lower() for p in requested))  # removes duplicates
+    return packages - already_installed
 
-def _subtract_stdlib(stdlib_packages, packages):
-    return packages - stdlib_packages
+def subtract_stdlib(packages: Set) -> Set:
+    '''
+    Understandably, some users request to install packages
+    that are actually in the standard library, so log it
+    and remove it from the list.
+    '''
+    stdlib = stdlib_packages()
 
-def _run_and_log_error(cmd):
-    returncode, err = _run_get_stderr(cmd)
+    for package in packages & stdlib:
+        logger.warning('%s is part of the Python standard library and will be skipped.  Remove it from the list to remove this warning.', package)
+
+    return packages - stdlib
+
+def run_and_log_error(cmd):
+    returncode, err = run_get_stderr(cmd)
 
     if returncode != 0 and err is not None:
-        _logger.error(err)
+        logger.error(err)
 
-def package(pkg_name):
-    packages = _pkg_name_list(pkg_name)
-
-    for pkg in packages:
-        _logger.debug('apk update')
-        _run_and_log_error(['apk', 'update'])
-        _logger.debug('apk add '+pkg)
-        _run_and_log_error(['apk', 'add', pkg])
-
-def _run_overrides(overrides):
+def run_overrides(overrides):
     for name, cmds in overrides.items():
-        _logger.info('Executing overrides for {0}'.format(name))
+        logger.info('Executing overrides for %s', name)
 
         for command in cmds:
-            if command[0] == 'package' and len(command) > 1:
-                package(command[1:])
-            elif len(command) > 0:
-                _logger.debug(' '.join(command))
-                _run_and_log_error(command)
+            if len(command) > 0:
+                logger.debug(' '.join(command))
+                run_and_log_error(command)
 
-def _log_already_installed(before, requested):
-    already_installed = before.intersection(requested)
+def log_currently_installed(before: Set, requested: Set) -> None:
+    already_installed = before & requested
 
     if len(already_installed) > 0:
-        _logger.info('Packages already installed: {0}'.format(', '.join(sorted(list(already_installed)))))
+        logger.info('Packages currently installed: %s', ', '.join(sorted(list(already_installed))))
 
-def _log_stdlib_packages(stdlib_packages, packages):
-    for package in packages:
-        if package in stdlib_packages:
-            _logger.warning('{0} is part of the Python standard library and will be skipped.  Remove it from the list to remove this warning.'.format(package))
-
-def _log_before_after(before, after):
+def log_before_after(before: Set, after: Set) -> None:
     new_packages = after - before
 
     if len(new_packages) == 0:
-        _logger.warning('No new packages installed')
+        logger.warning('No new packages installed')
     elif len(new_packages) > 0:
-        _logger.info('New packages installed: {0}'.format(', '.join(sorted(list(new_packages)))))
+        logger.info('New packages installed: {0}'.format(', '.join(sorted(list(new_packages)))))
 
-def pip(pkg_name, verbose=False, use_pypki2=None):
-    args = [
-        'install',
-    ]
+def find_pip_config_path(config_name: Optional[str], configs_path: Path):
+    if configs_path is None:
+        return None
 
-    packages_before_install = _already_installed()
+    return configs_path / config_name
 
-    if not _in_virtualenv():
-        args.append('--user')
+def pip_config_found(config_name: Optional[str], pip_config_path: Optional[Path]) -> bool:
+    if config_name is None:
+        return True
 
-    if verbose:
-        args.append('-vvv')
+    if pip_config_path.exists():
+        return True
 
-    packages = set(_pkg_name_list(pkg_name))
-    packages = _normalize_package_names(packages)
+    logger.error('Could not find pip config named %s at %s', config_name, pip_config_path)
+    return False
 
-    # ignore items from the standard library
-    stdlib_packages = _stdlib_packages()
-    _log_stdlib_packages(stdlib_packages, packages)
-    packages = _subtract_stdlib(stdlib_packages, packages)
+def pip(
+    requested_packages: Union[str, Sequence],
+    verbose: bool=False,
+    use_pki: bool=False,
+    use_overrides: bool=True,
+    config: Optional[str]=None,
+) -> None:
+    configs_path = config_dir(environ)
+    ipydeps_config = load_config(configs_path)
+    pip_config_path = find_pip_config_path(config, configs_path)
+
+    if not pip_config_found(config, pip_config_path):
+        return
+
+    packages_before_install = currently_installed()
+
+    requested_packages = get_pkg_names(requested_packages)
+    requested_packages = normalize_package_names(requested_packages)
+    requested_packages = subtract_stdlib(requested_packages)
 
     # ignore items that have already been installed
-    _log_already_installed(packages_before_install, packages)
-    packages = _subtract_installed(packages)
+    log_currently_installed(packages_before_install, requested_packages)
+    requested_packages = subtract_installed(packages_before_install, requested_packages)
 
-    overrides = _find_overrides(packages, _read_dependencies_link(_dependencies_link_location()))
-    _run_overrides(overrides)
+    if use_overrides:
+        run_overrides(find_overrides(requested_packages, ipydeps_config))
 
-    _refresh_available_packages()
-
-    # calculate and subtract what's installed again after overrides installed
-    packages = _subtract_installed(packages)
-
-    packages = list(packages)
-    args.extend(_remove_internal_options(_remove_per_package_options(_config_options)))
-    args.extend(_per_package_args(packages, _config_options))
+    # now that overrides have run, calculate and subtract what's installed again
+    refresh_available_packages()
+    packages_to_install = list(subtract_installed(currently_installed(), requested_packages))
 
     if len(packages) > 0:
-        _logger.debug('Running pip to install {0}'.format(', '.join(sorted(packages))))
-        pip_exec = _get_pip_exec(_apply_use_pypki2_param(use_pypki2, _config_options))
-        returncode, err = pip_exec(args + packages)
+        logger.debug('Running pip to install %s', ', '.join(sorted(packages)))
+        returncode, err = run_pip(packages_to_install, use_pki, verbose, pip_config_path)
 
         if returncode != 0 and err is not None:
-            _logger.error(err)
+            logger.error(err)
 
-        _invalidate_cache()
-        _refresh_available_packages()
+        invalidate_cache()
+        refresh_available_packages()
 
-    packages_after_install = _already_installed()
-    _log_before_after(packages_before_install, packages_after_install)
-    _logger.debug('Done')
-
-def _make_user_site_packages():
-    if not _in_virtualenv():
-        if not os.path.exists(_user_site_packages()):
-            try:
-                os.makedirs(_user_site_packages(), 0o755)
-            except FileExistsError:
-                pass  # ignore.  Something snuck in and created it for us
-            except Exception as e:
-                _logger.error('Cannot create user site-packages directory: {0}'.format(str(e)))
-
-        if _user_site_packages() not in sys.path:
-            sys.path.append(_user_site_packages())
+    packages_after_install = currently_installed()
+    log_before_after(packages_before_install, packages_after_install)
+    logger.debug('Done')
