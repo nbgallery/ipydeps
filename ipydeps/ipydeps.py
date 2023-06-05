@@ -1,6 +1,7 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
 from importlib import invalidate_caches as importlib_invalidate_caches
+from importlib.machinery import FileFinder
 from os import environ
 from pathlib import Path
 from time import sleep
@@ -66,6 +67,15 @@ def invalidate_cache():
     '''
     importlib_invalidate_caches()
     sleep(2)
+
+def refresh_available_packages():
+    '''
+    Forces a rescan of available packages in pip's vendored pkg_resources
+    and the main pkg_resources package, also used by pbr.
+    '''
+    for entry in sys.path:
+        if entry not in sys.path_importer_cache:
+            sys.path_importer_cache[entry] = FileFinder(entry)
 
 def valid_pkg_names(s: str):
     '''
@@ -247,7 +257,7 @@ def log_before_after(before: Set, after: Set) -> None:
         logger.info('New packages installed: %s', ', '.join(sorted(list(new_packages))))
 
 def find_pip_config_path(config_name: Optional[str], configs_path: Path):
-    if configs_path is None:
+    if config_name is None:
         return None
 
     return configs_path / config_name
@@ -291,7 +301,7 @@ def pip(
         run_overrides(find_overrides(requested_packages, ipydeps_config))
 
     # now that overrides have run, calculate and subtract what's installed again
-    invalidate_cache()
+    refresh_available_packages()
     packages_to_install = list(subtract_installed(currently_installed(), requested_packages))
 
     if len(packages_to_install) > 0:
@@ -302,6 +312,7 @@ def pip(
             logger.error(err)
 
         invalidate_cache()
+        refresh_available_packages()
 
     packages_after_install = currently_installed()
     log_before_after(packages_before_install, packages_after_install)

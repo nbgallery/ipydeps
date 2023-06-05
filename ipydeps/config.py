@@ -39,7 +39,7 @@ def load_config(path: Path) -> Config:
     config_parser = ConfigParser()
     config_parser.read(path)
     config = Config(
-        dependencies_link=config_parser.get('ipydeps', {}).get('dependencies_link'),
-        dependencies_link_requires_pki=config_parser.get('ipydeps', {}).getboolean('dependencies_link_requires_pki'),
+        dependencies_link=config_parser.get('ipydeps', 'dependencies_link', fallback=None),
+        dependencies_link_requires_pki=config_parser.getboolean('ipydeps', 'dependencies_link_requires_pki', fallback=False),
     )
     return config
