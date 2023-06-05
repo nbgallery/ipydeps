@@ -79,12 +79,20 @@ def test_normalize_package_names():
 
 def test_empty_overrides():
     names = set()
-    overrides = find_overrides(names, '')
+    config = Config(
+        dependencies_link=None,
+        dependencies_link_requires_pki=False,
+    )
+    overrides = find_overrides(names, config)
     assert len(overrides) == 0
 
 def test_no_overrides():
+    config = Config(
+        dependencies_link=None,
+        dependencies_link_requires_pki=False,
+    )
     names = set(['foo', 'bar', 'baz'])
-    overrides = find_overrides(names, '')
+    overrides = find_overrides(names, config)
 
     for name in names:
         assert name not in overrides

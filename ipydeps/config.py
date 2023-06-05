@@ -1,8 +1,8 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
 from collections import namedtuple
+from configparser import ConfigParser
 from pathlib import Path
-from typing import Optional
 
 from .logger import logger
 
@@ -14,7 +14,7 @@ Config = namedtuple(
     ],
 )
 
-def config_dir(environ):
+def config_dir(environ) -> Path:
     user_config_dir = Path.home() / '.config/ipydeps'
 
     if 'IPYDEPS_CONFIG_DIR' in environ:

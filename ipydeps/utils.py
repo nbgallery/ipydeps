@@ -1,5 +1,6 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
+from pathlib import Path
 from typing import Set
 
 import pkgutil
@@ -11,8 +12,8 @@ def combine_key_and_cert(combined_path: Path, key_path: Path, cert_path: Path) -
         outfile.write(cert_path.read_bytes())
 
 def in_virtualenv():
-    # based on https://stackoverflow.com/questions/1871549/determine-if-python-is-running-inside-virtualenv
-    return not sys.prefix == sys.base_prefix
+    # https://stackoverflow.com/questions/1871549/determine-if-python-is-running-inside-virtualenv
+    return sys.prefix != sys.base_prefix
 
 def normalize_package_names(packages: Set) -> Set:
     # normalize underscores to dashes to line
@@ -21,7 +22,7 @@ def normalize_package_names(packages: Set) -> Set:
     packages = {p.lower() for p in packages}
     return packages
 
-def stdlib_packages(version=sys.version_info.major) -> Set:
+def get_stdlib_packages(version=sys.version_info.major) -> Set:
     stdlib_list = ''
 
     if version == 3:

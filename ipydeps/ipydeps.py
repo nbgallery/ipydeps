@@ -2,27 +2,25 @@
 
 from importlib import invalidate_caches as importlib_invalidate_caches
 from os import environ
+from pathlib import Path
 from time import sleep
-from typing import Callable, Dict, Sequence, Set, Union
+from typing import Callable, Dict, Optional, Sequence, Set, Tuple, Union
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
 import json
-import pkg_resources
 import re
 import subprocess
 import sys
 
-from pypki3 import loader as pki_loader
-from pypki3 import NamedTemporaryKeyCertPaths, ssl_context
 from temppath import TemporaryPathContext
 
-from .config import config_dir, load_config
+from .config import Config, config_dir, load_config
 from .logger import logger
 from .utils import (
     combine_key_and_cert,
     normalize_package_names,
-    stdlib_packages,
+    get_stdlib_packages,
 )
 
 package_name_pattern = re.compile(r'([A-Za-z][A-Za-z0-9_\-]+((<|>|<=|>=|==)[0-9]+\.[0-9]+(\.[0-9]+)*)?)')
@@ -45,6 +43,9 @@ def run_pip(
         env['PIP_CONFIG_FILE'] = str(pip_config_path)
 
     if use_pki:
+        from pypki3 import loader as pki_loader  # pylint: disable=import-outside-toplevel
+        from pypki3 import NamedTemporaryKeyCertPaths  # pylint: disable=import-outside-toplevel
+
         with NamedTemporaryKeyCertPaths() as key_cert_paths:
             key_path = key_cert_paths[0]
             cert_path = key_cert_paths[1]
@@ -65,14 +66,6 @@ def invalidate_cache():
     '''
     importlib_invalidate_caches()
     sleep(2)
-
-def refresh_available_packages():
-    '''
-    Forces a rescan of available packages in pip's vendored pkg_resources
-    and the main pkg_resources package, also used by pbr.
-    '''
-    for entry in sys.path:
-        pkg_resources.working_set.add_entry(entry)
 
 def valid_pkg_names(s: str):
     '''
@@ -119,12 +112,16 @@ def case_insensitive_dependencies_json(dep_json):
 
 def get_dependencies_link_urlopener(config: Config) -> Callable:
     if config.dependencies_link_requires_pki:
+        from pypki3 import ssl_context  # pylint: disable=import-outside-toplevel
         ctx = ssl_context()
-        return lambda url: urlopen(url, context=ctx)
+        return lambda url: urlopen(url, context=ctx)  # pylint: disable=consider-using-with
 
     return urlopen
 
-def read_dependencies_json(config):
+def read_dependencies_json(config: Config):
+    if not config.dependencies_link:
+        return {}
+
     urlopener = get_dependencies_link_urlopener(config)
 
     try:
@@ -173,9 +170,12 @@ def find_overrides(packages: Set, config: Config) -> Dict[str, Sequence[str]]:
 
     return overrides
 
-def run_get_stderr(cmd, env=environ) -> Tuple[int, Optional[str]]:
+def run_get_stderr(cmd, env=None) -> Tuple[int, Optional[str]]:
     returncode = 0
     err = None
+
+    if env is None:
+        env = environ
 
     try:
         subprocess.check_output(cmd, stderr=subprocess.PIPE, env=env)
@@ -196,30 +196,26 @@ def process_pip_freeze_output(pkgs) -> list:
     return pkgs
 
 def pip_freeze_packages():
-    pkgs = subprocess.check_output(pip_run_args + ['freeze','--all'])
+    pkgs = subprocess.check_output(pip_run_args + ['freeze', '--all'])
     return process_pip_freeze_output(pkgs)
 
 def currently_installed() -> Set:
-    pr = set([pkg.project_name for pkg in pkg_resources.working_set])
-    pf = set(pip_freeze_packages())
-    return {p.lower() for p in pr|pf}
+    return {p.lower() for p in set(pip_freeze_packages())}
 
 def subtract_installed(already_installed: Set, requested: Set) -> Set:
     requested_packages = set((p.lower() for p in requested))  # removes duplicates
-    return packages - already_installed
+    return requested_packages - already_installed
 
-def subtract_stdlib(packages: Set) -> Set:
+def subtract_stdlib(stdlib_packages: Set, packages: Set) -> Set:
     '''
     Understandably, some users request to install packages
     that are actually in the standard library, so log it
     and remove it from the list.
     '''
-    stdlib = stdlib_packages()
-
-    for package in packages & stdlib:
+    for package in packages & stdlib_packages:
         logger.warning('%s is part of the Python standard library and will be skipped.  Remove it from the list to remove this warning.', package)
 
-    return packages - stdlib
+    return packages - stdlib_packages
 
 def run_and_log_error(cmd):
     returncode, err = run_get_stderr(cmd)
@@ -248,7 +244,7 @@ def log_before_after(before: Set, after: Set) -> None:
     if len(new_packages) == 0:
         logger.warning('No new packages installed')
     elif len(new_packages) > 0:
-        logger.info('New packages installed: {0}'.format(', '.join(sorted(list(new_packages)))))
+        logger.info('New packages installed: %s', ', '.join(sorted(list(new_packages))))
 
 def find_pip_config_path(config_name: Optional[str], configs_path: Path):
     if configs_path is None:
@@ -281,10 +277,11 @@ def pip(
         return
 
     packages_before_install = currently_installed()
+    stdlib_packages = get_stdlib_packages()
 
     requested_packages = get_pkg_names(requested_packages)
     requested_packages = normalize_package_names(requested_packages)
-    requested_packages = subtract_stdlib(requested_packages)
+    requested_packages = subtract_stdlib(stdlib_packages, requested_packages)
 
     # ignore items that have already been installed
     log_currently_installed(packages_before_install, requested_packages)
@@ -294,18 +291,17 @@ def pip(
         run_overrides(find_overrides(requested_packages, ipydeps_config))
 
     # now that overrides have run, calculate and subtract what's installed again
-    refresh_available_packages()
+    invalidate_cache()
     packages_to_install = list(subtract_installed(currently_installed(), requested_packages))
 
-    if len(packages) > 0:
-        logger.debug('Running pip to install %s', ', '.join(sorted(packages)))
+    if len(packages_to_install) > 0:
+        logger.debug('Running pip to install %s', ', '.join(sorted(packages_to_install)))
         returncode, err = run_pip(packages_to_install, use_pki, verbose, pip_config_path)
 
         if returncode != 0 and err is not None:
             logger.error(err)
 
         invalidate_cache()
-        refresh_available_packages()
 
     packages_after_install = currently_installed()
     log_before_after(packages_before_install, packages_after_install)

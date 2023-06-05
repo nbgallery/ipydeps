@@ -26,8 +26,9 @@ disable = "too-many-nested-blocks,too-many-branches,too-many-statements,R0801,R0
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py{310}
+envlist = py310
 isolated_build = true
+recreate = true
 
 [gh-actions]
 python =
@@ -35,8 +36,6 @@ python =
 	3.10: py310
 
 [testenv]
-recreate = true
-changedir = tests
 deps =
   flake8
 	pylint
