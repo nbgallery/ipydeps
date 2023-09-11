@@ -27,52 +27,53 @@ from pymc import DiscreteUniform
 from bs4 import BeautifulSoup
 ```
 
-If you want more verbose output from pip, just set the ```verbose``` parameter to ```True```.
+If you want more verbose output from pip, just set the `verbose` parameter to `True`.
 
 ```python
 import ipydeps
-ipydeps.pip('sklearn', verbose=True)
+ipydeps.pip('scikit-learn', verbose=True)
 from sklearn.cluster import KMeans
 ```
 
+There are also `use_pki`, `use_overrides`, and `config` options that can be passed to `ipydeps.pip()`.  More on that below.
+
 ## Configuration Files
 
-### ipydeps.conf
-pip options for your particular environment can be placed in ~/.config/ipydeps/ipydeps.conf.  For example, the following ipydeps.conf could be used to specify that you want ipydeps to trust a host, timeout after 30 seconds, and install all packages into user space:
+The latest version of ipydeps supports multiple configuration files, which can be selected using `ipydeps.pip(['bar', 'baz'], config='repo1.conf')`, which will read the configuration in `~/.config/ipydeps/repo1.conf`.
 
-```text
---trusted-host=my.pip.server.com
---user
---timeout=30
+The configuration files follow the normal ConfigParser format, for example:
+
+```ini
+[ipydeps]
+dependencies_link="https://some.trusted/overrides/location.json"
+dependencies_link_requires_pki=true
 ```
 
-Some pip options have to be specified per-package.  ipydeps will take care of specifying the option for each package for you.  However, make sure you're working in a fully trusted environment before using these options.  Putting these two lines in your ipydeps.conf will basically turn off any of pip's built-in verification.
+Note that `dependencies_link_requires_pki` defaults to false.  If set to true, it will get PKI information from pypki3 before reaching out to the `dependencies_link`.
 
-```text
---allow-external
---allow-unverified
+The `dependencies_link` can also point to somewhere local:
+
+```ini
+[ipydeps]
+dependencies_link="file:///some/local/path.json"
 ```
 
-If you were installing packages called "foo" and "bar" that you didn't want verified, then normally you'd have to pass ```--allow-external=foo --allow-external=bar --allow-unverified=foo --allow-unverified=bar```, but ipydeps will just fill these in for each package automatically if you simply put ```--allow-external``` and ```--allow-unverified``` in your ipydeps.conf.
+### dependencies_link
 
-### dependencies.link
+Sometimes there's a better way to install certain Python packages, such as a pre-built rpm or apk.  For example, maybe you want to install numpy, so you call ipydeps.pip('numpy').  However, numpy can take a while to install from scratch.  If there's a pre-built version of numpy available, it can install in seconds instead of minutes.  
 
-Sometimes there's a better way to install certain packages, such as a pre-built rpm or apk.  ~/.config/ipydeps/dependencies.link contains a URL for a file that overrides ipydeps.pip() calls for certain packages.
+`dependencies_link` contains a URL pointing to a JSON file which maps the original package names to their overrides.
 
-For example, maybe you want to install numpy, so you call ipydeps.pip('numpy').  However, numpy can take a while to install from scratch.  If there's a pre-built version of numpy available, it can install in seconds instead of minutes.  
+Only use a trusted location in your dependencies_link, since the overrides could contain malicious commands that get executed as you.
 
-dependencies.link contains a URL pointing to a dependencies.json file which maps the original package names to their overrides.
+If you are managing multiple Jupyter environment deployments, you can have different dependencies_link location pointing at different JSON files for each environment.
+For example, Fedora deployments can have a dependencies_link that points to https://trusted.host/dependencies-fedora.json, while FreeBSD deployments can have a dependencies_link that points to https://trusted.host/dependencies-freebsd.json.
+This allows multiple environment deployments to be centrally managed by changing their corresponding JSON files.
 
-Only place a trusted link in your dependencies.link file, since dependencies.json could contain malicious commands that get executed as you.
+### Overrides
 
-If you are managing multiple Jupyter environment deployments, you can have different dependencies.link files pointing at different dependencies.json files for each environment.
-For example, Fedora deployments can have a dependencies.link that points to https://trusted.host/dependencies-fedora.json, while FreeBSD deployments can have a dependencies.link that points to https://trusted.host/dependencies-freebsd.json.
-This allows multiple environment deployments to be centrally managed by changing their corresponding dependencies.json files.
-
-### dependencies.json
-
-dependencies.link contains a URL pointing to a dependencies.json file which maps the original package names to their overrides.
-The dependencies.json file should look something like this contrived example:
+dependencies_link contains a URL pointing to a JSON file which maps the original package names to their overrides.
+The JSON file should look something like this contrived example:
 
 ```json
 {
@@ -104,16 +105,15 @@ The dependencies.json file should look something like this contrived example:
 Note that ipydeps will use the most specific override it can find.
 In the example above, a Python 3.5 environment will use the python-3.5 override for numpy.  The python-3 override for numpy will be ignored.
 
-Also note that all package names are handled in a case-insensitive manner (just like pip), so ipydeps will output a warning if it finds duplicate packages listed in your dependencies.json file.
+Also note that all package names are handled in a case-insensitive manner (just like pip), so ipydeps will output a warning if it finds duplicate packages listed in your JSON file.
+
+If you explicitly *do not* want to use any overrides, simply use `ipydeps.pip(['bar', 'baz'], use_overrides=False)`.
 
 ### Windows support
 
-ipydeps now supports Windows as well as Linux.  It will look for your home directory using `os.path.expanduser('~')`.  In most cases, this just points to C:\Users\yourname.  You should put your .config/ipydeps/ipydeps.conf file in that directory.
+ipydeps now supports Windows as well as Linux.  It will look for your home directory using `pathlib.Path.home()`.  In most cases, this just points to C:\Users\yourname.  You should put your config files in `.config/ipydeps/` within that home directory.
 
-### pypki2 support
+### PKI Support
+PKI support is supplied by the pypki3 package.  PKI configuration information will be passed from pypki3 to pip.  This is particularly helpful with encrypted PKI certificates; pip normally prompts for your PKI password multiple times, but with pypki3 you only have to enter the password once.
 
-In some environments, having a PKI-enabled pip server is advantageous.  To that end, pypki2 integration is supported.  Simply add the following to ipydeps.conf:
-
-```text
---use-pypki2
-```
+To enable PKI support, simply use `ipydeps.pip(['bar', 'baz'], use_pki=True)`.
