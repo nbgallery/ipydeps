@@ -7,7 +7,7 @@ def good_lib(lib):
         return False
     return True
 
-if __name__ == "__main__":
+def main():
     libs2 = sorted(list(set([ lib.lower() for lib in stdlib_list("2.7") if good_lib(lib) ])))
     libs3 = sorted(list(set([ lib.lower() for lib in stdlib_list("3.6") if good_lib(lib) ])))
 
@@ -18,3 +18,6 @@ if __name__ == "__main__":
     with open('ipydeps/data/libs3.txt', 'w') as f:
         for lib in libs3:
             f.write(lib + '\n')
+
+if __name__ == "__main__":
+    main()
