@@ -3,10 +3,7 @@
 A friendly way to specify your Jupyter notebook's dependencies right at the top of the notebook.
 This helps ensure that other users have the Python packages they need to successfully run your notebook.
 
-Unlike `!pip install`, ipydeps makes sure that the packages get installed into the same Python environment that's executing your notebook's code cells.
-No more `!pip`, `!pip3`, `!pip -V` frustrations for you and your users.
-
-It also includes features for installation accelerators via centrally-managed overrides, and PKI integration.
+It includes features for installation accelerators via centrally-managed overrides, and PKI integration.  It also ensures that packages get installed into the same Python environment that's executing your notebook's code cells, like `%pip install`.
 
 ## Usage
 
