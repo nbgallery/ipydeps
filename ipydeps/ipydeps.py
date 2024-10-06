@@ -206,7 +206,7 @@ def process_pip_freeze_output(pkgs) -> list:
     return pkgs
 
 def pip_freeze_packages():
-    pkgs = subprocess.check_output(pip_run_args + ['freeze', '--all'])
+    pkgs = subprocess.check_output(pip_run_args + ['list', '--format=freeze'])
     return process_pip_freeze_output(pkgs)
 
 def currently_installed() -> Set:

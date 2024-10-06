@@ -32,17 +32,17 @@ recreate = true
 
 [gh-actions]
 python =
-	3.6: py36
-	3.10: py310
+  3.6: py36
+  3.10: py310
 
 [testenv]
 deps =
   flake8
-	pylint
-	pytest
-	pytest-cov
+  pylint
+  pytest
+  pytest-cov
 commands =
   flake8 --select E201,E202,E231,E262,E265 ipydeps
-	pylint ipydeps
-	pytest --cov-report term-missing --cov=ipydeps
+  pylint ipydeps
+  pytest --cov-report term-missing --cov=ipydeps
 """
