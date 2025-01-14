@@ -57,6 +57,21 @@ def test_version_specifier_list():
     assert 'bar' in packages
     assert 'baz<5.5.5' in packages
 
+def test_version_specifier_special_release_without_seperator():
+    packages = get_pkg_names('foo==10.1.0post2')
+    assert len(packages) == 1
+    assert 'foo==10.1.0post2' in packages
+
+def test_version_specifier_special_release_with_seperator():
+    packages = get_pkg_names('bar==5.4.0.dev1')
+    assert len(packages) == 1
+    assert 'bar==5.4.0.dev1' in packages
+
+def test_version_specifier_combo_special_release():
+    packages = get_pkg_names('foobar~=1.0.0b1.post10')
+    assert len(packages) == 1
+    assert 'foobar~=1.0.0b1.post10' in packages
+
 def test_freeze_name_parsing():
     name = get_freeze_package_name('six==1.10.0')
     assert name == 'six'
