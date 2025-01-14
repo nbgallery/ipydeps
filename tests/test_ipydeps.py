@@ -67,10 +67,18 @@ def test_version_specifier_special_release_with_seperator():
     assert len(packages) == 1
     assert 'bar==5.4.0.dev1' in packages
 
-def test_version_specifier_combo_special_release():
-    packages = get_pkg_names('foobar~=1.0.0b1.post10')
+def test_version_specifier_plus_sign_release():
+    packages = get_pkg_names('bar~=2.0.43+2')
     assert len(packages) == 1
-    assert 'foobar~=1.0.0b1.post10' in packages
+    assert 'bar~=2.0.43+2' in packages
+
+def test_version_specifier_combo_special_release():
+    packages = get_pkg_names('foo~=1.0.0b1.post10 bar==2.0.43.dev2+21 foobar>=1.0.0.post1.dev2 baz<=2.1.5rc100.dev43+test')
+    assert len(packages) == 4
+    assert 'foo~=1.0.0b1.post10' in packages
+    assert 'bar==2.0.43.dev2+21' in packages
+    assert 'foobar>=1.0.0.post1.dev2' in packages
+    assert 'baz<=2.1.5rc100.dev43+test' in packages
 
 def test_freeze_name_parsing():
     name = get_freeze_package_name('six==1.10.0')
