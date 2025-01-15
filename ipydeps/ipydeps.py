@@ -24,7 +24,7 @@ from .utils import (
     get_stdlib_packages,
 )
 
-package_name_pattern = re.compile(r'([A-Za-z][A-Za-z0-9_\-]+((<|>|<=|>=|==)[0-9]+\.[0-9]+(\.[0-9]+)*)?)')
+package_name_pattern = re.compile(r'([A-Za-z][A-Za-z0-9_\-]+(((<|>|<=|>=|==|~=)[0-9]+\.[0-9]+(\.[0-9]+)*)((\.?(a|b|rc|post|dev)[0-9]+)|\+[A-Za-z0-9_\-\.]+)*)?)')
 pip_run_args = [sys.executable, '-m', 'pip']
 
 def run_pip(
