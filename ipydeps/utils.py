@@ -26,7 +26,7 @@ def get_stdlib_packages(version=sys.version_info.major, minor=sys.version_info.m
     stdlib_list = ''
 
     if version == 3:
-        if minor >= 10:
+        if minor >= 10 and hasattr(sys, "stdlib_module_names"):
             stdlib_list = sys.stdlib_module_names
             return normalize_package_names(set(stdlib_list))
         stdlib_list = pkgutil.get_data(__name__, 'data/libs3.txt')
