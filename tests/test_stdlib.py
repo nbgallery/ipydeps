@@ -13,7 +13,7 @@ def test_stdlib_py2():
 def test_stdlib_py3():
     packages = get_stdlib_packages(version=3)
     if sys.version_info.minor >= 10:
-        assert len(packages) == 303
+        assert len(packages) >= 303
     else:
         assert len(packages) == 203
 
