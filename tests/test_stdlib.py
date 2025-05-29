@@ -1,6 +1,7 @@
 # vim: expandtab tabstop=4 shiftwidth=4
 
 import pytest
+import sys
 
 from ipydeps.ipydeps import subtract_stdlib
 from ipydeps.utils import get_stdlib_packages
@@ -11,7 +12,10 @@ def test_stdlib_py2():
 
 def test_stdlib_py3():
     packages = get_stdlib_packages(version=3)
-    assert len(packages) == 203
+    if sys.version_info.minor >= 10:
+        assert len(packages) == 303
+    else:
+        assert len(packages) == 203
 
 def test_without_stdlib_packages():
     stdlib_packages = get_stdlib_packages()
