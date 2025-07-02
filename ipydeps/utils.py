@@ -22,10 +22,13 @@ def normalize_package_names(packages: Set) -> Set:
     packages = {p.lower() for p in packages}
     return packages
 
-def get_stdlib_packages(version=sys.version_info.major) -> Set:
+def get_stdlib_packages(version=sys.version_info.major, minor=sys.version_info.minor) -> Set:
     stdlib_list = ''
 
     if version == 3:
+        if minor >= 10 and hasattr(sys, "stdlib_module_names"):
+            stdlib_list = sys.stdlib_module_names  # pylint: disable=no-member
+            return normalize_package_names(set(stdlib_list))
         stdlib_list = pkgutil.get_data(__name__, 'data/libs3.txt')
     elif version == 2:
         stdlib_list = pkgutil.get_data(__name__, 'data/libs2.txt')
