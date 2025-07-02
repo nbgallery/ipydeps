@@ -203,6 +203,7 @@ def process_pip_freeze_output(pkgs) -> list:
     pkgs = str(pkgs, encoding='utf8').split('\n')
     pkgs = [p for p in pkgs if len(p) > 0 and '==' in p]
     pkgs = [get_freeze_package_name(p) for p in pkgs]
+    pkgs = normalize_package_names(pkgs)
     return pkgs
 
 def pip_freeze_packages():
